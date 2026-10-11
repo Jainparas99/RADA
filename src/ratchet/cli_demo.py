@@ -234,7 +234,9 @@ def tune(
         env = api.prepare_scratch(w, settings.ns)
     else:
         try:
-            import ratchet.env as api  # Track B
+            from ratchet.agent.loop import default_api
+
+            api = default_api()  # Track B env + scorer
         except ImportError as e:
             console.print(f"[red]Track B env not available ({e}); try --fake[/red]")
             raise typer.Exit(1) from e
@@ -317,7 +319,9 @@ def attack(
             api: Any = _fakes().FakeEnv()
         else:
             try:
-                import ratchet.env as api  # Track B
+                from ratchet.agent.loop import default_api
+
+                api = default_api()  # Track B env + scorer
             except ImportError as e:
                 console.print(f"[red]Track B env not available ({e}); try --fake[/red]")
                 raise typer.Exit(1) from e
@@ -349,7 +353,9 @@ def _env_backend(fake: bool) -> Any:
     if fake:
         return _fakes().FakeEnv()
     try:
-        import ratchet.env as api  # Track B
+        from ratchet.agent.loop import default_api
+
+        api = default_api()  # Track B env + scorer
     except ImportError as e:
         console.print(f"[red]Track B env not available ({e}); try --fake[/red]")
         raise typer.Exit(1) from e

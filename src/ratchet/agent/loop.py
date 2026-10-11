@@ -71,9 +71,23 @@ class Recorder:
 
 
 def default_api() -> Any:
-    import ratchet.env as env_api  # Track B
+    """Track B's environment (`ratchet.env`) plus its scorer (`ratchet.scoring.score`)."""
+    from types import SimpleNamespace
 
-    return env_api
+    import ratchet.env as env_api  # Track B
+    from ratchet.scoring import score
+
+    names = [
+        "prepare_scratch",
+        "measure",
+        "run_detectors",
+        "apply_plan",
+        "query_shape",
+        "collection_stats",
+        "sample_docs",
+    ]
+    fns = {n: getattr(env_api, n) for n in names if callable(getattr(env_api, n, None))}
+    return SimpleNamespace(**fns, score=score)
 
 
 def default_llm() -> Any:

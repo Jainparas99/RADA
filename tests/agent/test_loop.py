@@ -208,3 +208,11 @@ def test_unavailable_planner_model_falls_back_to_config_default():
     assert llm.calls[0]["model"] == get_settings().planner_model
     assert r.models_used["planner"] == get_settings().planner_model
     assert any(t["step"] == "routing" for t in r.trace)
+
+
+def test_default_api_bundles_track_b_env_and_scorer():
+    from ratchet.agent.loop import default_api
+
+    api = default_api()
+    for name in ("prepare_scratch", "measure", "run_detectors", "apply_plan", "score"):
+        assert callable(getattr(api, name)), name
