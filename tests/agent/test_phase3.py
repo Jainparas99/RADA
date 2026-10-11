@@ -236,7 +236,19 @@ class Canned:
         return RawCompletion(text=json.dumps(ESR_PLAN), input_tokens=10, output_tokens=5)
 
 
-def test_replay_uses_only_the_cache_and_reports_misses():
+def test_replay_uses_only_the_cache_and_reports_misses(monkeypatch):
+    # Hermetic: the planner fallback reads settings; a developer's .env (e.g. a groq: planner)
+    # must not change which model the replay looks up in the cache.
+    from ratchet import config
+
+    defaults = config.load_settings(dotenv=False).model_copy(
+        update={
+            "planner_model": config.DEFAULT_PLANNER_MODEL,
+            "critic_model": config.DEFAULT_CRITIC_MODEL,
+        }
+    )
+    monkeypatch.setattr("ratchet.agent.loop.get_settings", lambda: defaults)
+    monkeypatch.setattr("ratchet.agent.critic.get_settings", lambda: defaults)
     cache, prov = MemoryCache(), Canned()
     env = FakeEnv()
     h = AgentHarness().model_dump(mode="json")
