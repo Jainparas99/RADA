@@ -110,3 +110,38 @@ def test_real_backend_gives_tune_an_api_with_score():
     assert getattr(backend._api, "no_such_function", None) is None
     splits = [w.split for w in backend.workloads()]
     assert (splits.count("train"), splits.count("holdout"), splits.count("canary")) == (8, 4, 3)
+
+
+# ------------------------------------------------------------------ rate limits (live run)
+
+
+def _fallback(result, error):
+    """What Track C's tune() returns when the planner call itself fails."""
+    empty = result.plan.model_copy(update={"actions": [], "summary": "planner failed; empty plan"})
+    return result.model_copy(update={"plan": empty, "trace": [{"step": "plan", "error": error}]})
+
+
+def test_a_failed_model_call_is_not_mistaken_for_a_bad_harness(spec):
+    good = runner.evaluate(FakeBackend(), spec, "h_0000", "train")[0]
+    assert not runner.planner_call_failed(good)
+    assert runner.planner_call_failed(_fallback(good, "LLMCallError: RateLimitError 429"))
+    # a model that answered with unusable JSON is a real miss and is still scored
+    assert not runner.planner_call_failed(_fallback(good, "invalid plan: bad JSON"))
+
+
+def test_real_backend_retries_rate_limited_tunes_then_refuses_to_record(spec):
+    try:
+        backend = runner.RealBackend(ns="test")
+    except runner.BackendUnavailable as e:
+        pytest.skip(str(e))
+    good = runner.evaluate(FakeBackend(), spec, "h_0000", "train")[0]
+    limited = _fallback(good, "LLMCallError: RateLimitError 429")
+    replies, waits = [limited, limited, good], []
+    backend._prepare = lambda w, ns: None
+    backend._tune = lambda *a, **kw: replies.pop(0)
+    backend._sleep = waits.append
+    w = FakeBackend().workloads("train")[0]
+    assert backend.tune(w, spec, "normal") == good and waits == [65.0, 65.0]
+    backend._tune = lambda *a, **kw: limited
+    with pytest.raises(runner.PlannerUnavailable):
+        backend.tune(w, spec, "normal")

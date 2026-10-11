@@ -149,6 +149,7 @@ def eval_(
             from ratchet.harness.store import HarnessStore
 
             backend = runner.RealBackend()
+            runner.use_patient_llm_client()
             database = db.get_db()
             store = HarnessStore(database)
             doc = store.get(version) if version is not None else store.get_head()
@@ -308,6 +309,7 @@ def evolve(
             from ratchet.proposer.propose import propose
 
             model = get_settings().proposer_model
+            runner.use_patient_llm_client()
             mem = memory.default_store()  # the same store the agent recalls from
             ev = Evolver(
                 db.get_db(),
@@ -318,7 +320,12 @@ def evolve(
                 on_event=_print_event,
             )
         records = ev.run(gens)
-    except (ConfigError, runner.BackendUnavailable, RuntimeError, ImportError) as e:
+    except (
+        ConfigError,
+        runner.BackendUnavailable,
+        RuntimeError,
+        ImportError,
+    ) as e:  # incl. PlannerUnavailable
         raise _fail(str(e)) from e
     console.print(history_table(ev.store))
     console.print(memory_table(mem))
@@ -408,3 +415,55 @@ def memory() -> None:
         console.print(memory_table(_memory_store()))
     except ConfigError as e:
         raise _fail(str(e)) from e
+
+
+@app.command("export-traces")
+def export_traces(
+    version: str = typer.Option(None, "--version", "-v", help="Harness version (default: head)."),
+    split: str = typer.Option(
+        None, "--split", "-s", help="train | holdout | canary (default: all)."
+    ),
+    out: str = typer.Option(None, "--out", help="Also write the OTLP JSON to this file."),
+    endpoint: str = typer.Option(
+        None, "--endpoint", help="OTLP/HTTP JSON endpoint (default: Raindrop Workshop, local)."
+    ),
+    no_send: bool = typer.Option(False, "--no-send", help="Only write the file."),
+) -> None:
+    """Send stored tuning traces to Raindrop Workshop (OTLP JSON at /v1/traces)."""
+    import json
+    from pathlib import Path
+
+    from ratchet import db, otlp
+    from ratchet.harness import runner
+    from ratchet.harness.store import HarnessStore, StoreError
+
+    try:
+        database = db.get_db()
+        store = HarnessStore(database)
+        vid = store.get(version).id if version is not None else store.get_head().id
+        splits = [split] if split else ["train", "holdout", "canary"]
+        results = [r for s in splits for r in runner.load_results(database, vid, s)]  # type: ignore[arg-type]
+    except (ConfigError, StoreError, ValueError) as e:
+        raise _fail(str(e)) from e
+    if not results:
+        raise _fail(f"no stored tuning results for {vid}; run `ratchet eval` first")
+    payload = otlp.to_otlp(results)
+    n_spans = len(payload["resourceSpans"][0]["scopeSpans"][0]["spans"])
+    console.print(f"{vid}: {len(results)} tuning runs → {n_spans} spans")
+    if out:
+        Path(out).write_text(json.dumps(payload), encoding="utf-8")
+        console.print(f"wrote {out}")
+    if no_send:
+        return
+    target = endpoint or otlp.DEFAULT_ENDPOINT
+    try:
+        status = otlp.post(payload, target)
+    except OSError as e:
+        raise _fail(
+            f"could not reach {target} ({e}). Start Raindrop Workshop (`raindrop workshop`) "
+            "or pass --endpoint / --no-send."
+        ) from e
+    colour = "green" if 200 <= status < 300 else "red"
+    console.print(f"POST {target} → [{colour}]HTTP {status}[/{colour}]")
+    if not 200 <= status < 300:
+        raise typer.Exit(1)

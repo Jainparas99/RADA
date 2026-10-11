@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Literal, Protocol
 
@@ -19,6 +20,42 @@ Mode = Literal["normal", "frozen_memory"]
 
 class BackendUnavailable(RuntimeError):
     pass
+
+
+class PlannerUnavailable(RuntimeError):
+    """The planner model could not be called (rate limit, outage, missing key). Raised instead
+    of recording the agent's fallback empty plan, which would look like a harness that scored 0."""
+
+
+_PLANNER_FAILED = "planner failed; empty plan"  # Track C's fallback summary
+_CALL_ERRORS = ("LLMCallError", "RateLimit", "ProviderUnavailable", "CacheMiss", "429")
+RATE_LIMIT_WAITS = (65.0, 65.0, 130.0)  # seconds; free tiers meter tokens per minute
+
+
+def planner_call_failed(result: TuneResult) -> bool:
+    """True if the result is the agent's empty fallback plan caused by a failed model call
+    (as opposed to a model that answered with unusable JSON, which is a real, scoreable miss)."""
+    if result.plan.actions or result.plan.summary != _PLANNER_FAILED:
+        return False
+    text = json.dumps(result.trace, default=str)
+    return any(marker in text for marker in _CALL_ERRORS)
+
+
+def use_patient_llm_client() -> None:
+    """Long backoff for batch runs: a per-minute token quota needs waits of about a minute,
+    not the interactive default of a few seconds."""
+    import os
+
+    from ratchet import llm
+
+    cache_only = os.environ.get("RATCHET_LLM_CACHE_ONLY", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    llm.set_client(
+        llm.LLMClient(max_attempts=8, base_delay=4.0, max_delay=65.0, cache_only=cache_only)
+    )
 
 
 class Backend(Protocol):
@@ -69,6 +106,7 @@ class RealBackend:
                 f"real backend not available yet ({e}); use --fake until Tracks B and C land"
             ) from e
         self._tune = tune
+        self._sleep = time.sleep
         self._api = _EnvApi(env_module, score)
         self.ns = ns or get_settings().ns
 
@@ -76,8 +114,16 @@ class RealBackend:
         return [w for w in load_workload_files() if split is None or w.split == split]
 
     def tune(self, workload: Workload, harness: HarnessSpec, mode: Mode) -> TuneResult:
-        scratch = self._prepare(workload, self.ns)
-        return self._tune(workload, harness, scratch, mode, api=self._api)
+        for wait in (*RATE_LIMIT_WAITS, None):
+            scratch = self._prepare(workload, self.ns)  # resets indexes and rewrites
+            result = self._tune(workload, harness, scratch, mode, api=self._api)
+            if not planner_call_failed(result):
+                return result
+            if wait is not None:
+                self._sleep(wait)
+        raise PlannerUnavailable(
+            f"planner model could not be called for {workload.id}; not recording a score"
+        )
 
 
 class SplitSummary(BaseModel):

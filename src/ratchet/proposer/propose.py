@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -94,11 +95,31 @@ def _is_llm_error(e: Exception) -> bool:
     return any(c.__name__ == "LLMError" for c in type(e).__mro__)
 
 
+RATE_LIMIT_WAITS = (65.0, 65.0, 130.0)  # seconds; free tiers meter tokens per minute
+
+
+def _call(complete: CompleteFn, model: str, messages: list[dict], schema: dict, sleep) -> Any:
+    """One proposer call. A rate limit is waited out; any other LLM-layer failure (the client
+    already validated and repaired JSON itself) becomes a ProposerError."""
+    for wait in (*RATE_LIMIT_WAITS, None):
+        try:
+            return complete(ROLE, model, messages, json_schema=schema)
+        except Exception as e:
+            if not _is_llm_error(e):
+                raise
+            limited = "RateLimit" in f"{type(e).__name__}: {e}" or "429" in str(e)
+            if wait is None or not limited:
+                raise ProposerError(f"{type(e).__name__}: {e}") from e
+            sleep(wait)
+    raise AssertionError("unreachable")
+
+
 def propose(
     context: ProposerContext,
     complete: CompleteFn | None = None,
     model: str | None = None,
     usage: dict | None = None,
+    sleep=time.sleep,
 ) -> ProposerOutput:
     """Ask the proposer for a patch. One repair retry on invalid JSON, then ProposerError."""
     complete = complete or _default_complete()
@@ -107,13 +128,7 @@ def propose(
     messages = build_messages(context)
     last_error = ""
     for _attempt in range(2):
-        try:
-            resp = complete(ROLE, model, messages, json_schema=schema)
-        except Exception as e:
-            # ratchet.llm validates and repairs JSON itself, then raises; so do provider outages.
-            if _is_llm_error(e):
-                raise ProposerError(f"{type(e).__name__}: {e}") from e
-            raise
+        resp = _call(complete, model, messages, schema, sleep)
         if usage is not None:
             usage["tokens"] = usage.get("tokens", 0) + response_tokens(resp)
             usage["calls"] = usage.get("calls", 0) + 1

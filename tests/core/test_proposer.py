@@ -182,3 +182,51 @@ def test_llm_layer_errors_become_proposer_errors(ctx):
 
     with pytest.raises(KeyError):
         propose(ctx, complete=bug, model="fake:m")
+
+
+# ------------------------------------------------------------------ rate limits (live run)
+
+
+class _Limited(RuntimeError):
+    pass
+
+
+class LLMError(RuntimeError):  # same name as ratchet.llm.types.LLMError
+    pass
+
+
+class LLMCallError(LLMError):
+    pass
+
+
+def test_proposer_waits_out_a_rate_limit(ctx):
+    calls, waits = [], []
+    llm = FakeLLM({"proposer": [SCRIPTED_PROPOSALS[1]]})
+
+    def flaky(*a, **kw):
+        calls.append(1)
+        if len(calls) < 3:
+            raise LLMCallError("RateLimitError: 429 tokens per minute")
+        return llm.complete(*a, **kw)
+
+    out = propose(ctx, complete=flaky, model="fake:m", sleep=waits.append)
+    assert out.patch and len(calls) == 3 and waits == [65.0, 65.0]
+
+
+def test_proposer_gives_up_on_a_persistent_rate_limit_or_other_outage(ctx):
+    waits = []
+
+    def always(*a, **kw):
+        raise LLMCallError("RateLimitError: 429")
+
+    with pytest.raises(ProposerError, match="RateLimit"):
+        propose(ctx, complete=always, model="fake:m", sleep=waits.append)
+    assert len(waits) == 3
+
+    def down(*a, **kw):
+        raise LLMCallError("connection reset")
+
+    waits.clear()
+    with pytest.raises(ProposerError):
+        propose(ctx, complete=down, model="fake:m", sleep=waits.append)
+    assert waits == []
