@@ -52,20 +52,39 @@ def _step_span(step: dict, i: int, result: TuneResult) -> tuple[str, dict[str, A
     if kind == "llm":
         provider, _, model = str(step.get("model", "")).partition(":")
         messages = step.get("messages") or []
+        reply = step.get("response")
+        reply = reply if isinstance(reply, str) or reply is None else json.dumps(jsonable(reply))
         attrs = {
             "gen_ai.operation.name": "chat",
             "gen_ai.system": provider,
             "gen_ai.request.model": model or provider,
             "gen_ai.usage.total_tokens": step.get("tokens"),
-            "gen_ai.prompt": messages,
-            "gen_ai.completion": step.get("response"),
+            # The same content under each naming scheme Raindrop Workshop reads: OpenTelemetry
+            # GenAI, the Vercel AI SDK and OpenLLMetry (indexed prompt/completion).
+            "gen_ai.input.messages": messages,
+            "gen_ai.output.messages": [{"role": "assistant", "content": reply}] if reply else None,
+            "ai.prompt.messages": messages,
+            "ai.response.text": reply,
+            "ai.model.id": model or provider,
+            "ai.model.provider": provider,
+            "gen_ai.completion.0.role": "assistant" if reply else None,
+            "gen_ai.completion.0.content": reply,
+            "traceloop.span.kind": "llm",
+            "llm.request.type": "chat",
             "ratchet.role": step.get("role"),
             "ratchet.cached": step.get("cached"),
             "ratchet.error": step.get("error"),
         }
+        for n, m in enumerate(messages if isinstance(messages, list) else []):
+            if isinstance(m, dict):
+                attrs[f"gen_ai.prompt.{n}.role"] = m.get("role")
+                attrs[f"gen_ai.prompt.{n}.content"] = m.get("content")
         duration = int(step.get("ms") or 1) * 1_000_000
         return f"chat {model or provider} ({step.get('role', 'llm')})", attrs, duration
     attrs = {f"ratchet.{k}": v for k, v in step.items() if k != "step"}
+    attrs["traceloop.span.kind"] = "task"
+    attrs["traceloop.entity.name"] = kind
+    attrs["traceloop.entity.output"] = {k: v for k, v in step.items() if k != "step"}
     if kind == "apply_measure" and isinstance(step.get("score"), dict):
         attrs["ratchet.score.value"] = step["score"].get("score")
         attrs["ratchet.score.violations"] = step["score"].get("violations")
@@ -105,6 +124,20 @@ def result_spans(result: TuneResult, start_ns: int) -> list[dict]:
         "endTimeUnixNano": str(max(cursor, start_ns + _STEP_NS)),
         "attributes": _attrs(
             {
+                "traceloop.span.kind": "workflow",
+                "traceloop.entity.name": f"tune {result.workload_id}",
+                "traceloop.association.properties.event_name": "tune",
+                "traceloop.entity.input": {
+                    "workload": result.workload_id,
+                    "split": result.split,
+                    "harness_version": result.harness_version,
+                },
+                "traceloop.entity.output": {
+                    "score": result.score.model_dump(),
+                    "plan": result.plan.summary,
+                    "cost_before": result.before.workload_cost,
+                    "cost_after": result.after.workload_cost,
+                },
                 "ratchet.workload": result.workload_id,
                 "ratchet.split": result.split,
                 "ratchet.harness_version": result.harness_version,

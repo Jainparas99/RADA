@@ -66,8 +66,12 @@ def test_llm_calls_use_genai_attribute_names(results):
     a = attrs(llm)
     assert llm["kind"] == 3
     assert a["gen_ai.system"] == "groq" and a["gen_ai.request.model"] == "openai/gpt-oss-120b"
-    assert a["gen_ai.usage.total_tokens"] == "1234" and "plan please" in a["gen_ai.prompt"]
-    assert a["gen_ai.completion"] == '{"actions": []}'
+    assert a["gen_ai.usage.total_tokens"] == "1234"
+    # prompt and completion under each naming scheme Raindrop Workshop reads
+    assert "plan please" in a["gen_ai.input.messages"] and "plan please" in a["ai.prompt.messages"]
+    assert a["gen_ai.prompt.0.role"] == "user" and a["gen_ai.prompt.0.content"] == "plan please"
+    assert a["ai.response.text"] == a["gen_ai.completion.0.content"] == '{"actions": []}'
+    assert json.loads(a["gen_ai.output.messages"])[0]["role"] == "assistant"
     assert int(llm["endTimeUnixNano"]) - int(llm["startTimeUnixNano"]) == 250_000_000
 
 
