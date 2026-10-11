@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from collections.abc import Callable
 from typing import Any
@@ -306,7 +307,8 @@ _client: LLMClient | None = None
 def get_client() -> LLMClient:
     global _client
     if _client is None:
-        _client = LLMClient()
+        flag = os.environ.get("RATCHET_LLM_CACHE_ONLY", "").strip().lower()
+        _client = LLMClient(cache_only=flag in ("1", "true", "yes"))
     return _client
 
 

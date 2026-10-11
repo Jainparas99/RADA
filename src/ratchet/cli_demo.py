@@ -1,4 +1,4 @@
-"""Track C commands: tune (attack, transfer, chart, watch, replay land in later phases)."""
+"""Track C commands: tune, attack, transfer, chart, watch, replay."""
 
 from __future__ import annotations
 
@@ -330,3 +330,187 @@ def attack(
         console.print(f"[red]{len(failed)} cheat(s) not caught[/red]")
         raise typer.Exit(1)
     console.print(f"[green]all {sum(r.passed is True for r in results)} cheats rejected[/green]")
+
+
+# --------------------------------------------------------------------------- phase 3 commands
+
+
+def _state_db() -> Any:
+    from ratchet import db
+
+    settings = get_settings()
+    if not settings.mongodb_uri_rw:
+        console.print("[red]MONGODB_URI_RW is not set (see .env.example)[/red]")
+        raise typer.Exit(1)
+    return db.get_db()
+
+
+def _env_backend(fake: bool) -> Any:
+    if fake:
+        return _fakes().FakeEnv()
+    try:
+        import ratchet.env as api  # Track B
+    except ImportError as e:
+        console.print(f"[red]Track B env not available ({e}); try --fake[/red]")
+        raise typer.Exit(1) from e
+    return api
+
+
+def _tune_with(api: Any, spec: dict, version: str, mode: str = "frozen_memory"):
+    from ratchet.agent import tune as run_tune
+
+    ns = get_settings().ns
+
+    def fn(w: Workload) -> TuneResult:
+        return run_tune(w, spec, api.prepare_scratch(w, ns), mode, api=api, harness_version=version)
+
+    return fn
+
+
+@app.command()
+def transfer(
+    harness: str | None = typer.Option(None, "--harness", help="Best version (default: head)."),
+    models: str | None = typer.Option(None, "--models", help="Comma-separated planner models."),
+    fake: bool = typer.Option(False, "--fake", help="FakeEnv instead of the Atlas sandbox."),
+    out: Path = typer.Option(Path("docs/transfer.md"), "--out", help="Markdown table output."),
+) -> None:
+    """Gen 0 vs the best harness on HOLDOUT for every callable planner model (SPEC §11.4)."""
+    import ratchet.llm as llm
+    from ratchet import transfer as tr
+
+    safe_stdout()
+    settings = get_settings()
+    use_db = bool(settings.mongodb_uri_rw)
+    best_doc, best_v = load_harness(harness, use_db=use_db)
+    try:
+        gen0_doc, _ = load_harness("0", use_db=use_db) if use_db else load_harness(None, False)
+    except typer.BadParameter:
+        gen0_doc, _ = load_harness(None, use_db=False)
+    candidates = (
+        [m.strip() for m in models.split(",")]
+        if models
+        else [
+            *best_doc.get("protected", {}).get("model_allowlist", []),
+            settings.planner_model,
+            settings.critic_model,
+        ]
+    )
+    usable = tr.callable_models(candidates, llm.available)
+    skipped = [m for m in dict.fromkeys(candidates) if m and m not in usable]
+    if not usable:
+        console.print("[red]no callable planner model (check API keys)[/red]")
+        raise typer.Exit(1)
+    api = _env_backend(fake)
+    workloads = all_workloads(fake)
+    ns = settings.ns
+    from ratchet.agent import tune as run_tune
+
+    def tune_fn(w: Workload, doc: dict, label: str) -> TuneResult:
+        return run_tune(
+            w, doc, api.prepare_scratch(w, ns), "frozen_memory", api=api, harness_version=label
+        )
+
+    def progress(model: str, label: str, r: TuneResult) -> None:
+        console.print(f"[dim]{model} {label} {r.workload_id}: {r.score.score:.3f}[/dim]")
+
+    rep = tr.run_transfer(workloads, gen0_doc, best_doc, best_v, usable, tune_fn, progress)
+    rep.skipped.update({m: "no key / SDK" for m in skipped})
+    md = tr.to_markdown(rep)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(md, encoding="utf-8")
+    if use_db:
+        try:
+            tr.save(_state_db(), rep)
+        except Exception as e:
+            console.print(f"[yellow]could not store transfer_runs ({type(e).__name__})[/yellow]")
+    t = Table(title=f"Transfer: {best_v} vs gen 0 on holdout")
+    for col in ("planner model", "gen 0", "best", "lift", "violations g0/best"):
+        t.add_column(col)
+    for r in rep.rows:
+        t.add_row(
+            r.model,
+            f"{r.gen0.mean_score:.3f}",
+            f"{r.best.mean_score:.3f}",
+            f"{r.lift:+.3f}",
+            f"{r.gen0.violations}/{r.best.violations}",
+        )
+    console.print(t)
+    console.print(f"markdown written to {out}")
+
+
+@app.command()
+def chart(
+    out: Path = typer.Option(Path("docs/chart.png"), "--out", help="PNG path."),
+) -> None:
+    """PNG: train/holdout score per generation, accepted vs rejected candidates."""
+    from ratchet.viz.chart import load_points, render_chart
+
+    safe_stdout()
+    points = load_points(_state_db())
+    if not points:
+        console.print("[yellow]no generations recorded yet; run `ratchet evolve`[/yellow]")
+        raise typer.Exit(1)
+    path = render_chart(points, out)
+    acc = sum(p.verdict == "ACCEPT" for p in points if p.gen > 0)
+    rej = sum(p.verdict == "REJECT" for p in points)
+    console.print(f"wrote {path} ({len(points)} points, {acc} accepted, {rej} rejected)")
+
+
+@app.command()
+def watch(
+    interval: float = typer.Option(2.0, "--interval", help="Polling interval (fallback)."),
+    poll: bool = typer.Option(False, "--poll", help="Skip change streams; poll."),
+) -> None:
+    """Live tail of harness versions, gate decisions and generations."""
+    from ratchet.viz.watch import watch as run_watch
+
+    safe_stdout()
+    try:
+        run_watch(_state_db(), console.print, interval=interval, use_change_streams=not poll)
+    except KeyboardInterrupt:
+        console.print("[dim]stopped[/dim]")
+
+
+@app.command()
+def replay(
+    version: str | None = typer.Option(None, "--version", "-v", help="Harness version."),
+    gen: int | None = typer.Option(None, "--gen", help="Replay this generation's candidate."),
+    split: str = typer.Option("train", "--split", help="train | holdout | canary"),
+    fake: bool = typer.Option(False, "--fake", help="FakeEnv instead of the Atlas sandbox."),
+) -> None:
+    """Re-run a recorded generation from llm_cache only (no provider calls)."""
+    from ratchet import replay as rp
+
+    safe_stdout()
+    db = _state_db()
+    try:
+        vid = rp.resolve_version(db, version, gen)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
+    spec, vid = load_harness(vid, use_db=True)
+    api = _env_backend(fake)
+    workloads = [w for w in all_workloads(fake) if w.split == split]
+    from ratchet.db import TUNE_RESULTS
+
+    recorded = {
+        d["workload_id"]: d["score"]["score"]
+        for d in db[TUNE_RESULTS].find({"harness_version": vid, "split": split})
+    }
+    mode = "normal" if split == "train" else "frozen_memory"
+    rows = rp.replay(workloads, _tune_with(api, spec, vid, mode), recorded)
+    t = Table(title=f"Replay {vid} on {split} from llm_cache (no provider calls)")
+    for col in ("workload", "score", "recorded", "violations", "llm calls", "cache misses"):
+        t.add_column(col)
+    for r in rows:
+        rec = "-" if r.recorded_score is None else f"{r.recorded_score:.3f}"
+        miss = f"[red]{r.cache_misses}[/red]" if r.cache_misses else "0"
+        t.add_row(
+            r.workload_id,
+            f"{r.score:.3f}",
+            rec,
+            ", ".join(r.violations) or "-",
+            str(r.llm_calls),
+            miss,
+        )
+    console.print(t)
