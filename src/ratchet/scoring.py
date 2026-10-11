@@ -113,10 +113,22 @@ def _is_prefix(a: list[tuple[str, Any]], b: list[tuple[str, Any]]) -> bool:
     return len(a) < len(b) and b[: len(a)] == a
 
 
-def dropped_redundant(workload: Workload, before: Measurement, apply: ApplyReport) -> int:
+def _recreated_keys(plan: TuningPlan | None) -> dict[str, list[list[tuple[str, Any]]]]:
+    out: dict[str, list[list[tuple[str, Any]]]] = {}
+    for a in plan.actions if plan is not None else []:
+        if a.type == "create_index" and a.index is not None and a.collection:
+            out.setdefault(a.collection, []).append([(k, v) for k, v in a.index.keys])
+    return out
+
+
+def dropped_redundant(
+    workload: Workload, before: Measurement, apply: ApplyReport, plan: TuningPlan | None = None
+) -> int:
     """Dropped baseline indexes that were a strict key prefix of another baseline index,
-    or used by no query in the before-measurement."""
+    or used by no query in the before-measurement. An index the same plan creates again
+    with the same keys earns nothing: dropping and recreating is a no-op."""
     base = _baseline_keys(workload)
+    recreated = _recreated_keys(plan)
     used: set[str] = set()
     for s in before.per_query.values():
         used.update(s.indexes_used)
@@ -128,6 +140,8 @@ def dropped_redundant(workload: Workload, before: Measurement, apply: ApplyRepor
             keys = base.get(coll, {}).get(name)
             if keys is None:
                 continue  # not a baseline index (created and dropped in the same plan)
+            if keys in recreated.get(coll, []):
+                continue
             others = [k for nm, k in base[coll].items() if nm != name]
             if any(_is_prefix(keys, o) for o in others) or name not in used:
                 n += 1
@@ -135,7 +149,11 @@ def dropped_redundant(workload: Workload, before: Measurement, apply: ApplyRepor
 
 
 def index_penalty(
-    workload: Workload, before: Measurement, apply: ApplyReport, cfg: dict[str, Any]
+    workload: Workload,
+    before: Measurement,
+    apply: ApplyReport,
+    cfg: dict[str, Any],
+    plan: TuningPlan | None = None,
 ) -> float:
     alpha, beta, gamma = float(cfg["alpha"]), float(cfg["beta"]), float(cfg["gamma"])
     pen = 0.0
@@ -144,7 +162,7 @@ def index_penalty(
         for name in names:
             pen += alpha * float(workload.write_rate.get(coll, 0.0))
             pen += beta * float(sizes.get(name, 0.0))
-    pen -= gamma * dropped_redundant(workload, before, apply)
+    pen -= gamma * dropped_redundant(workload, before, apply, plan)
     return pen
 
 
@@ -184,7 +202,7 @@ def score(
 ) -> ScoreReport:
     cfg = cfg or load_config()
     imp = improvement(workload_cost(workload, before), workload_cost(workload, after))
-    pen = index_penalty(workload, before, apply, cfg)
+    pen = index_penalty(workload, before, apply, cfg, plan)
     viol = violations(workload, before, after, apply)
     if viol:
         s = 0.0

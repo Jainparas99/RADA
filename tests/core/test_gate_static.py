@@ -280,18 +280,19 @@ def test_gate_tampered(spec):
 
 def test_hashes_change_when_a_source_file_changes(tmp_path, monkeypatch):
     for name in ("gate.yaml", "bounds.yaml", "scoring.yaml"):
-        (tmp_path / name).write_text("a: 1\n")
+        (tmp_path / name).write_text("a: 1\n", encoding="utf-8")
     monkeypatch.setenv("RATCHET_CONFIG_DIR", str(tmp_path))
     gate_before, scorer_before = hashes.gate_hash(), hashes.scorer_hash()
-    (tmp_path / "gate.yaml").write_text("a: 2\n")
+    (tmp_path / "gate.yaml").write_text("a: 2\n", encoding="utf-8")
     assert hashes.gate_hash() != gate_before and hashes.scorer_hash() == scorer_before
-    (tmp_path / "scoring.yaml").write_text("a: 2\n")
+    (tmp_path / "scoring.yaml").write_text("a: 2\n", encoding="utf-8")
     assert hashes.scorer_hash() != scorer_before
 
 
 def test_a_spec_pinned_to_old_source_blocks_every_patch(spec, tmp_path, monkeypatch):
     for name in ("gate.yaml", "bounds.yaml"):
-        (tmp_path / name).write_text(Path(f"config/{name}").read_text(encoding="utf-8"))
+        text = Path(f"config/{name}").read_text(encoding="utf-8")
+        (tmp_path / name).write_text(text, encoding="utf-8")
     loosened = Path("config/gate.yaml").read_text(encoding="utf-8") + "\n# loosened\n"
     (tmp_path / "gate.yaml").write_text(loosened, encoding="utf-8")
     monkeypatch.setenv("RATCHET_CONFIG_DIR", str(tmp_path))
