@@ -40,6 +40,7 @@ __all__ = [
     "FakeLLMResponse",
     "FakeScratch",
     "SCRIPTED_PROPOSALS",
+    "fake_memory_llm",
     "fake_tune",
     "fake_workloads",
     "heuristic_plan",
@@ -717,3 +718,18 @@ SCRIPTED_PROPOSALS: list[dict] = [
 def scripted_proposer_llm() -> FakeLLM:
     """A FakeLLM that replays SCRIPTED_PROPOSALS for the proposer role, then repeats the last."""
     return FakeLLM({"proposer": list(SCRIPTED_PROPOSALS)}, default=SCRIPTED_PROPOSALS[-1])
+
+
+def fake_memory_llm() -> FakeLLM:
+    """Scripted lesson writer + deterministic embeddings for the memory store."""
+
+    def lesson(call: dict) -> dict:
+        brief = json.loads(call["messages"][-1]["content"])
+        qid = next(iter(brief["query_shapes"]), "q1")
+        if brief["violations"]:
+            text = "Count existing indexes before adding one; never exceed the index budget."
+        else:
+            text = "Put equality fields first, then the sort field, then range fields."
+        return {"query_id": qid, "lesson": text}
+
+    return FakeLLM(default=lesson)

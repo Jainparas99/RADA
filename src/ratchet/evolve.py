@@ -73,6 +73,9 @@ class Evolver:
             squash_min_chars=leak.get("squash_min_chars", 6),
             ignore_terms=leak.get("ignore_terms", []),
         )
+        if memory is not None and getattr(memory, "leak_terms", None) is None:
+            memory.leak_terms = self.leak_terms
+        self._fresh: set[tuple[str, str]] = set()  # (version, split) actually run by this process
 
     # -- running a version ---------------------------------------------------------
 
@@ -84,7 +87,20 @@ class Evolver:
             if want and {r.workload_id for r in have} == want:
                 return have
         self.on_event("run", {"version": doc.id, "split": split})
-        return runner.evaluate(self.backend, doc.spec, doc.id, split, db=self.db)
+        self._fresh.add((doc.id, split))
+        if split == "train" or self.memory is None:
+            return runner.evaluate(self.backend, doc.spec, doc.id, split, db=self.db)
+        with self.memory.frozen():  # CLAUDE.md invariant 7
+            return runner.evaluate(self.backend, doc.spec, doc.id, split, db=self.db)
+
+    def learn(self, doc: HarnessDoc, train: list[TuneResult]) -> None:
+        """Write lessons from a version's TRAIN results (only versions that are, or just
+        became, the head)."""
+        if self.memory is None:
+            return
+        queries = {w.id: w.queries for w in self.backend.workloads("train")}
+        new = self.memory.write_lessons(train, doc.spec.memory_policy, queries)
+        self.on_event("lessons", {"version": doc.id, "written": len(new)})
 
     def metrics_for(self, doc: HarnessDoc) -> tuple[RunMetrics, dict[Split, list[TuneResult]]]:
         runs = {s: self.results_for(doc, s) for s in SPLITS}
@@ -173,6 +189,9 @@ class Evolver:
 
         parent_metrics, parent_runs = self.metrics_for(head)
         rec.parent_metrics = parent_metrics.model_dump()
+        if (head.id, "train") in self._fresh:
+            self._fresh.discard((head.id, "train"))
+            self.learn(head, parent_runs["train"])
 
         context = build_context(
             head,
@@ -198,6 +217,7 @@ class Evolver:
             head.spec,
             out.patch,
             leak_terms=self.leak_terms,
+            lessons=self.memory.active_texts() if self.memory is not None else None,
             bounds=self.bounds,
             gate_cfg=self.gate_cfg,
         )
@@ -226,8 +246,11 @@ class Evolver:
             rationale,
             models_used={**self._models(head), **static.candidate.model_routing.model_dump()},
         )
-        cand_metrics, _ = self.metrics_for(cand)
+        cand_metrics, cand_runs = self.metrics_for(cand)
         rec.candidate_metrics = cand_metrics.model_dump()
+        if self.memory is not None:
+            baseline = {r.workload_id: r.score.score for r in parent_runs["train"]}
+            self.memory.record_outcomes(cand_runs["train"], baseline, cand.spec.memory_policy)
         codes = check_dynamic(
             parent_metrics,
             cand_metrics,
@@ -245,9 +268,15 @@ class Evolver:
                 "candidate": rec.candidate_metrics,
             },
         )
-        return self._decide(rec, decision, out.patch, t0)
+        rec = self._decide(rec, decision, out.patch, t0, finish=False)
+        if decision.verdict == "ACCEPT":
+            self._fresh.discard((cand.id, "train"))
+            self.learn(self.store.get(cand.id), cand_runs["train"])
+        return self._finish(rec, t0)
 
-    def _decide(self, rec, decision: GateDecision, patch: list[PatchOp], t0: float):
+    def _decide(
+        self, rec, decision: GateDecision, patch: list[PatchOp], t0: float, finish: bool = True
+    ):
         rec.candidate, rec.verdict, rec.reason_codes = (
             decision.candidate,
             decision.verdict,
@@ -259,7 +288,7 @@ class Evolver:
         else:
             self.store.reject(decision.candidate, decision.reason_codes)
         self._record_decision(decision, patch)
-        return self._finish(rec, t0)
+        return self._finish(rec, t0) if finish else rec
 
     def _finish(self, rec: GenerationRecord, t0: float) -> GenerationRecord:
         rec.duration_s = round(time.monotonic() - t0, 3)
@@ -273,9 +302,11 @@ class Evolver:
 
 def evolve(gens: int) -> None:
     """SPEC §10 entry point: real backend, real proposer, the `ratchet_<ns>` database."""
+    from ratchet import memory
     from ratchet.config import get_settings
     from ratchet.db import get_db
     from ratchet.proposer.propose import propose
 
     model = get_settings().proposer_model
-    Evolver(get_db(), runner.RealBackend(), propose, proposer_model=model).run(gens)
+    mem = memory.default_store()  # the same store the agent recalls from
+    Evolver(get_db(), runner.RealBackend(), propose, memory=mem, proposer_model=model).run(gens)
