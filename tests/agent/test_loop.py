@@ -66,11 +66,11 @@ def test_invalid_plan_gets_one_repair():
     r = run(llm)
     assert r.score.score > 0.5
     assert len(llm.calls) == 2
-    assert "That plan was invalid" in llm.prompts("planner")
+    assert "That reply was invalid" in llm.prompts("planner")
 
 
 def test_invalid_twice_gives_empty_plan_not_exception():
-    llm = FakeLLM({"planner": ["nope", {"actions": [{"type": "collMod"}]}]})
+    llm = FakeLLM({"planner": ["nope", {"actions": "not a list"}]})
     r = run(llm)
     assert r.plan.actions == [] and r.score.score == 0.0 and r.score.violations == []
     p = next(t for t in r.trace if t["step"] == "plan")
@@ -120,13 +120,14 @@ def test_empty_plan_is_a_clean_stop():
     assert r.rounds == 1 and r.score.score == 0.0 and r.after == r.before
 
 
-def test_guardrail_drops_disallowed_actions():
+def test_action_outside_allowed_actions_is_a_forbidden_violation():
     drop = {"type": "drop_index", "collection": "movies", "index_name": "title_1"}
     llm = FakeLLM({"planner": [plan(ESR, drop)]})
     r = run(llm, harness(protected__allowed_actions=["create_index"]))
-    assert [a.type for a in r.plan.actions] == ["create_index"]
+    assert [a.type for a in r.plan.actions] == ["create_index"]  # stripped, rest applied
     p = next(t for t in r.trace if t["step"] == "plan")
-    assert p["dropped_actions"][0]["type"] == "drop_index"
+    assert p["forbidden"][0]["action"]["type"] == "drop_index"
+    assert "FORBIDDEN_ACTION" in r.score.violations and r.score.score == 0.0
     assert "Allowed action types for this run: create_index." in llm.prompts("planner")
 
 

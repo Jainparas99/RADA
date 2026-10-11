@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from ratchet.agent import context as ctx
 from ratchet.agent.harness_view import AgentHarness, view
 from ratchet.agent.planner import make_plan
+from ratchet.agent.tools import ToolBox
 from ratchet.config import get_settings
 from ratchet.contracts import (
     Finding,
@@ -121,7 +122,7 @@ def _shape(api: Any, q: Any) -> str:
     return f"{q.collection} | {q.kind} | filter {sorted(q.filter)}"
 
 
-def _lesson_text(lesson: Any) -> str:
+def lesson_text(lesson: Any) -> str:
     for attr in ("text", "lesson", "content"):
         v = getattr(lesson, attr, None) if not isinstance(lesson, dict) else lesson.get(attr)
         if isinstance(v, str):
@@ -143,7 +144,7 @@ def recall_lessons(
         except Exception:
             continue
         for lesson in lessons or []:
-            t = _lesson_text(lesson)
+            t = lesson_text(lesson)
             if t and t not in out and sum(map(len, out)) + len(t) <= budget:
                 out.append(t)
     return out
@@ -176,6 +177,17 @@ class RoundOutcome(BaseModel):
     score: ScoreReport
 
 
+def _dump_measurement(m: Measurement) -> dict:
+    return m.model_dump(mode="json", exclude={"per_query": {"__all__": {"raw"}}})
+
+
+def with_forbidden(sc: ScoreReport) -> ScoreReport:
+    """A plan that tried a forbidden action scores 0 with a recorded FORBIDDEN_ACTION."""
+    if "FORBIDDEN_ACTION" in sc.violations:
+        return sc.model_copy(update={"score": 0.0})
+    return sc.model_copy(update={"score": 0.0, "violations": [*sc.violations, "FORBIDDEN_ACTION"]})
+
+
 def tune(
     workload: Workload,
     harness: Any,
@@ -186,29 +198,32 @@ def tune(
     llm: Any | None = None,
     memory: Any | None = ...,  # type: ignore[assignment]
     harness_version: str = "",
-    critic: Any | None = None,
+    critic: Any | None = ...,  # type: ignore[assignment]
+    use_tools: bool = True,
 ) -> TuneResult:
+    """Tune one workload on its scratch copy. `mode="frozen_memory"` reads lessons, never writes."""
+    from ratchet.agent.critic import critique_and_revise
+
     api = api if api is not None else default_api()
     llm = llm if llm is not None else default_llm()
     memory = default_memory() if memory is ... else memory
+    critic = critique_and_revise if critic is ... else critic
     h = view(harness)
     trace: list[dict] = [{"step": "start", "workload": workload.id, "mode": mode}]
     rec = Recorder(llm, trace)
 
-    settings = get_settings()
     planner_model = h.model_routing.planner
     if not rec.available(planner_model):
-        trace.append({"step": "routing", "note": f"{planner_model} unavailable, using default"})
-        planner_model = settings.planner_model
+        fallback = get_settings().planner_model
+        trace.append({"step": "routing", "note": f"{planner_model} unavailable, using {fallback}"})
+        planner_model = fallback
 
     before = api.measure(env, workload)
     findings: list[Finding] = api.run_detectors(env, workload, before)
     trace.append(
         {
             "step": "measure_before",
-            "measurement": before.model_dump(
-                mode="json", exclude={"per_query": {"__all__": {"raw"}}}
-            ),
+            "measurement": _dump_measurement(before),
             "findings": [f.model_dump(mode="json") for f in findings],
         }
     )
@@ -220,9 +235,24 @@ def tune(
             c: _optional(api, "sample_docs", env, c, h.context_policy.sample_docs)
             for c in workload.collections
         }
+    toolbox = (
+        ToolBox(
+            api,
+            env,
+            workload,
+            before,
+            findings,
+            h,
+            memory,
+            getattr(harness, "memory_policy", None),
+        )
+        if use_tools
+        else None
+    )
 
     inject = h.memory_policy.inject.mode
     lessons_used: list[str] = []
+    forbidden: list[dict] = []
     applied: list = []
     report: Any = None
     prev_score: float | None = None
@@ -258,7 +288,7 @@ def tune(
             lessons=lessons,
             retry=retry,
         )
-        plan, info = make_plan(rec, planner_model, h, context)
+        plan, info = make_plan(rec, planner_model, h, context, None, toolbox, rnd)
         trace.append(
             {
                 "step": "plan",
@@ -266,22 +296,25 @@ def tune(
                 "plan": plan.model_dump(mode="json"),
                 "ok": info["ok"],
                 "error": info["error"],
-                "dropped_actions": info["dropped"],
+                "tool_calls": info["tool_calls"],
+                "forbidden": info["forbidden"],
             }
         )
         if critic is not None and h.critic_policy.enabled and plan.actions:
-            plan = critic(rec, h, workload, context, plan, info, trace)
+            plan = critic(rec, h, workload, context, plan, info, trace, planner_model, toolbox, rnd)
+            trace.append({"step": "plan_final", "round": rnd, "plan": plan.model_dump(mode="json")})
+        forbidden += info.get("forbidden", [])
 
         if not plan.actions:
             trace.append({"step": "stop", "round": rnd, "reason": "empty plan"})
             if last is None:
+                empty = TuningPlan(actions=[])
+                rep = api.apply_plan(env, workload, empty)
                 last = RoundOutcome(
                     round=rnd,
-                    plan=TuningPlan(actions=[]),
+                    plan=empty,
                     after=before,
-                    score=api.score(
-                        workload, before, before, plan, api.apply_plan(env, workload, plan)
-                    ),
+                    score=api.score(workload, before, before, empty, rep),
                 )
             break
 
@@ -291,19 +324,19 @@ def tune(
         total_plan = TuningPlan(actions=list(applied), summary=plan.summary)
         after = api.measure(env, workload)
         sc = api.score(workload, before, after, total_plan, report)
+        if toolbox is not None:
+            toolbox.measurement = after
         last = RoundOutcome(round=rnd, plan=total_plan, after=after, score=sc)
         trace.append(
             {
                 "step": "apply_measure",
                 "round": rnd,
                 "apply": _report_dump(rep),
-                "measurement": after.model_dump(
-                    mode="json", exclude={"per_query": {"__all__": {"raw"}}}
-                ),
+                "measurement": _dump_measurement(after),
                 "score": sc.model_dump(mode="json"),
             }
         )
-        if sc.violations:
+        if sc.violations or forbidden:
             trace.append({"step": "stop", "round": rnd, "reason": "violation"})
             break
         if prev_score is not None and sc.score <= prev_score:
@@ -318,21 +351,27 @@ def tune(
             break
 
     assert last is not None
-    final = last
-    models_used = {"planner": planner_model, **rec.models}
+    score = with_forbidden(last.score) if forbidden else last.score
+    if forbidden:
+        trace.append({"step": "violation", "code": "FORBIDDEN_ACTION", "attempted": forbidden})
+    if toolbox is not None:
+        lessons_used += [t for t in toolbox.lessons_seen if t not in lessons_used]
+        trace += [{"step": "tool", **c} for c in toolbox.calls]
+    diagnostics = toolbox.self_diagnostics if toolbox is not None else []
+    trace += [{"step": "self_diagnose", **d} for d in diagnostics]
     return TuneResult(
         workload_id=workload.id,
         split=workload.split,
         harness_version=harness_version or str(getattr(harness, "version", "") or ""),
-        plan=final.plan,
+        plan=last.plan,
         before=before,
-        after=final.after,
-        score=final.score,
+        after=last.after,
+        score=score,
         findings=findings,
         tokens=rec.tokens,
         rounds=rounds,
         trace=trace,
-        self_diagnostics=[t for t in trace if t.get("step") == "self_diagnose"],
+        self_diagnostics=list(diagnostics),
         lessons_used=lessons_used,
-        models_used=models_used,
+        models_used={"planner": planner_model, **rec.models},
     )
