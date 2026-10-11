@@ -1,4 +1,4 @@
-# Rada
+# Rachet
 
 **A self-improving harness for MongoDB query tuning.** A tuning agent fixes slow workloads; the
 harness that steers it learns from every workload it tunes, and a new harness version is promoted
