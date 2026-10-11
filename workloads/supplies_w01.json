@@ -1,0 +1,159 @@
+{
+  "id": "supplies_w01",
+  "split": "holdout",
+  "db": "sample_supplies",
+  "collections": [
+    "sales"
+  ],
+  "baseline_indexes": {
+    "sales": [
+      {
+        "keys": [
+          [
+            "storeLocation",
+            1
+          ]
+        ],
+        "name": "storeLocation_1"
+      }
+    ]
+  },
+  "write_rate": {
+    "sales": 25.0
+  },
+  "index_budget": {
+    "sales": 3
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "sales",
+      "filter": {
+        "storeLocation": "Austin",
+        "purchaseMethod": "Phone",
+        "couponUsed": true
+      },
+      "freq": 25,
+      "sort": [
+        [
+          "saleDate",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 20,
+      "projection": {
+        "saleDate": 1,
+        "customer.email": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "sales",
+      "filter": {
+        "customer.email": "cauho@witwuta.sv"
+      },
+      "freq": 50,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "saleDate": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "sales",
+      "filter": {
+        "items.name": "laptop",
+        "customer.age": {
+          "$lt": 20
+        }
+      },
+      "freq": 5,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "storeLocation": 1,
+        "customer.age": 1
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "aggregate",
+      "collection": "sales",
+      "pipeline": [
+        {
+          "$unwind": "$items"
+        },
+        {
+          "$match": {
+            "items.name": "backpack",
+            "storeLocation": "London"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$purchaseMethod",
+            "n": {
+              "$sum": 1
+            },
+            "qty": {
+              "$sum": "$items.quantity"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "_id": 1
+          }
+        }
+      ],
+      "freq": 6
+    },
+    {
+      "id": "q5",
+      "kind": "find",
+      "collection": "sales",
+      "filter": {
+        "saleDate": {
+          "$gte": {
+            "$date": "2017-12-01T00:00:00Z"
+          },
+          "$lt": {
+            "$date": "2017-12-08T00:00:00Z"
+          }
+        }
+      },
+      "freq": 12,
+      "sort": [
+        [
+          "saleDate",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "storeLocation": 1,
+        "saleDate": 1
+      }
+    }
+  ],
+  "notes": "5k docs; point lookup on embedded email; date range; $unwind before $match"
+}

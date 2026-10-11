@@ -1,0 +1,162 @@
+{
+  "id": "training_w02",
+  "split": "holdout",
+  "db": "sample_training",
+  "collections": [
+    "inspections",
+    "routes"
+  ],
+  "baseline_indexes": {
+    "inspections": [
+      {
+        "keys": [
+          [
+            "result",
+            1
+          ]
+        ],
+        "name": "result_1"
+      },
+      {
+        "keys": [
+          [
+            "result",
+            1
+          ],
+          [
+            "address.city",
+            1
+          ]
+        ],
+        "name": "result_1_address.city_1"
+      }
+    ],
+    "routes": []
+  },
+  "write_rate": {
+    "inspections": 15.0,
+    "routes": 1.0
+  },
+  "index_budget": {
+    "inspections": 4,
+    "routes": 2
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "inspections",
+      "filter": {
+        "result": "Fail",
+        "address.city": "BRONX"
+      },
+      "freq": 20,
+      "sort": [
+        [
+          "certificate_number",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 50,
+      "projection": {
+        "business_name": 1,
+        "certificate_number": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "inspections",
+      "filter": {
+        "business_name": {
+          "$regex": "^STARBUCKS"
+        }
+      },
+      "freq": 15,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "business_name": 1,
+        "result": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "aggregate",
+      "collection": "inspections",
+      "pipeline": [
+        {
+          "$match": {
+            "address.zip": 11385
+          }
+        },
+        {
+          "$group": {
+            "_id": "$result",
+            "n": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$sort": {
+            "_id": 1
+          }
+        }
+      ],
+      "freq": 8
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "routes",
+      "filter": {
+        "src_airport": "JFK",
+        "dst_airport": "LHR"
+      },
+      "freq": 40,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "airline.name": 1
+      }
+    },
+    {
+      "id": "q5",
+      "kind": "find",
+      "collection": "routes",
+      "filter": {
+        "airline.name": "Ryanair",
+        "src_airport": "STN"
+      },
+      "freq": 10,
+      "sort": [
+        [
+          "dst_airport",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 50,
+      "projection": {
+        "dst_airport": 1
+      }
+    }
+  ],
+  "notes": "80k + 67k docs; redundant result_1; ESR with sort on dst_airport"
+}

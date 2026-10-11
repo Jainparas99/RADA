@@ -1,0 +1,152 @@
+{
+  "id": "mflix_w04",
+  "split": "train",
+  "db": "sample_mflix",
+  "collections": [
+    "comments",
+    "users",
+    "theaters"
+  ],
+  "baseline_indexes": {
+    "comments": [
+      {
+        "keys": [
+          [
+            "name",
+            1
+          ]
+        ],
+        "name": "name_1"
+      },
+      {
+        "keys": [
+          [
+            "name",
+            1
+          ],
+          [
+            "date",
+            -1
+          ]
+        ],
+        "name": "name_1_date_-1"
+      }
+    ],
+    "users": [],
+    "theaters": []
+  },
+  "write_rate": {
+    "comments": 40.0,
+    "users": 5.0,
+    "theaters": 0.1
+  },
+  "index_budget": {
+    "comments": 3,
+    "users": 1,
+    "theaters": 1
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "users",
+      "filter": {
+        "email": "roger_ashton-griffiths@gameofthron.es"
+      },
+      "freq": 100,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1,
+        "email": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "comments",
+      "filter": {
+        "email": "aidan_gillen@gameofthron.es"
+      },
+      "freq": 50,
+      "sort": [
+        [
+          "date",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 10,
+      "projection": {
+        "text": 1,
+        "date": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "aggregate",
+      "collection": "comments",
+      "pipeline": [
+        {
+          "$match": {
+            "date": {
+              "$gte": {
+                "$date": "2016-01-01T00:00:00Z"
+              }
+            }
+          }
+        },
+        {
+          "$group": {
+            "_id": "$name",
+            "n": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$sort": {
+            "n": -1,
+            "_id": 1
+          }
+        },
+        {
+          "$limit": 5
+        }
+      ],
+      "freq": 5
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "theaters",
+      "filter": {
+        "location.address.state": "TX",
+        "location.address.city": "Houston"
+      },
+      "freq": 10,
+      "sort": [
+        [
+          "theaterId",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "theaterId": 1,
+        "location.address.street1": 1
+      }
+    }
+  ],
+  "notes": "point lookups by email; name_1 redundant; theaters read-mostly"
+}
