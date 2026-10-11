@@ -126,7 +126,7 @@ def test_proposer_never_sees_holdout_canary_or_gate_source(full_run, db):
     for f in [*(src / "gate").glob("*.py"), src / "scoring.py"]:
         if not f.is_file():
             continue
-        for line in f.read_text().splitlines():
+        for line in f.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if len(line) > 40 and not line.startswith(("#", '"""')):
                 assert line not in prompts, f"{f.name}: {line}"

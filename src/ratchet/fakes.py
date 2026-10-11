@@ -282,6 +282,9 @@ class FakeEnv:
     def _apply_one(
         self, env: FakeScratch, workload: Workload, a: Action, rep: FakeApplyReport
     ) -> tuple[str, str] | None:
+        extras = sorted({*(a.model_extra or {}), *((a.index.model_extra or {}) if a.index else {})})
+        if extras:
+            return "FORBIDDEN_ACTION", f"options not allowed: {', '.join(extras)}"
         if a.type == "create_index":
             if a.collection not in env.indexes or a.index is None or not a.index.keys:
                 return "APPLY_ERROR", "create_index needs a workload collection and keys"

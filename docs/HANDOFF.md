@@ -35,3 +35,8 @@ Append one entry per sync: time, track, what landed on main, what's next, anythi
   - **Only tested on fakes + mongomock.** The `$vectorSearch` call and the Atlas score → cosine conversion (`2*score - 1`) have not run against the sandbox. The full run (`RATCHET_NS=main`, `evolve --gens 8`) has NOT been done: `main` has no Track C code yet and this machine has no `.env`.
   - **For Track C:** `recall` returns `Lesson` objects with `.text` (and `.similarity`). Put the lesson *texts* you injected into `TuneResult.lessons_used`; helpful/harmful accounting matches on text. Lesson distillation calls `llm.complete("memory", <planner model>, messages, json_schema=<dict>)`; embeddings call `llm.embed(texts)` and `llm.embed([shape], input_type="query")`.
   - **Track A depends on Track C for:** `ratchet.llm.complete` (proposer, lesson writer), `ratchet.llm.embed` (memory), `ratchet.agent.tune` (`eval`, `evolve`). All are imported lazily; without them only the `--fake` paths run.
+
+- (2026-10-11, Track A, reply to Track C's notes; on `person_A`)
+  - **Contracts change (additive):** `IndexDef` and `Action` now use `extra="allow"`, so unknown keys such as `unique` survive `TuningPlan` parsing and reach `env.apply_plan` (which already reads `model_extra`). `FakeEnv` now returns `FORBIDDEN_ACTION` for any extra key.
+  - **Windows:** every text read in Track A code and tests now passes `encoding="utf-8"`.
+  - **Stable names for `attack --outer`:** `gate.static.check_static`, `gate.dynamic.check_dynamic`, `gate.dynamic.RunMetrics`, `harness.gen0.gen0_spec` will not be renamed.

@@ -1,5 +1,7 @@
 """Every static reason code has a test that triggers it and one that doesn't (CLAUDE.md)."""
 
+from pathlib import Path
+
 import pytest
 
 from ratchet.contracts import PatchOp, Workload
@@ -289,8 +291,9 @@ def test_hashes_change_when_a_source_file_changes(tmp_path, monkeypatch):
 
 def test_a_spec_pinned_to_old_source_blocks_every_patch(spec, tmp_path, monkeypatch):
     for name in ("gate.yaml", "bounds.yaml"):
-        (tmp_path / name).write_text(open(f"config/{name}").read())
-    (tmp_path / "gate.yaml").write_text(open("config/gate.yaml").read() + "\n# loosened\n")
+        (tmp_path / name).write_text(Path(f"config/{name}").read_text(encoding="utf-8"))
+    loosened = Path("config/gate.yaml").read_text(encoding="utf-8") + "\n# loosened\n"
+    (tmp_path / "gate.yaml").write_text(loosened, encoding="utf-8")
     monkeypatch.setenv("RATCHET_CONFIG_DIR", str(tmp_path))
     assert "GATE_TAMPERED" in codes(spec, [P("add", "/planner_rules/-", "fine rule")])
 

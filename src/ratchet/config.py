@@ -114,5 +114,5 @@ def config_dir() -> Path:
 
 
 def load_yaml(name: str) -> dict[str, Any]:
-    with (config_dir() / name).open() as f:
+    with (config_dir() / name).open(encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
