@@ -9,6 +9,7 @@ dependencies = [
     "anthropic>=0.40",
     "jsonpatch>=1.33",
     "matplotlib>=3.9",
+    "openai>=1.50",
     "pydantic>=2.8",
     "pymongo>=4.9",
     "python-dotenv>=1.0",

@@ -1,6 +1,8 @@
 """Provider adapters behind `complete()`. Model ids are `provider:model`.
 
 Anthropic is required; OpenAI and Google are optional extras (`uv sync --extra openai|google`).
+Groq (`groq:<model>`, e.g. `groq:openai/gpt-oss-120b`) speaks the OpenAI chat API, so it reuses
+`OpenAIProvider` with Groq's base URL and `GROQ_API_KEY`; the `openai` SDK is a core dependency.
 A provider without a key (or SDK) raises `ProviderUnavailable`, which callers treat as "skip".
 SDK retries are disabled: `client.py` owns timeouts and backoff so behaviour is uniform.
 """
@@ -11,7 +13,8 @@ from typing import Any, Protocol
 
 from ratchet.llm.types import ModelSpecError, ProviderUnavailable, RawCompletion
 
-PROVIDERS = ("anthropic", "openai", "google")
+PROVIDERS = ("anthropic", "openai", "google", "groq")
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 # USD per 1M tokens (input, output). Logged for cost visibility only; unknown models cost 0.
 PRICES: dict[str, tuple[float, float]] = {
@@ -118,17 +121,26 @@ class AnthropicProvider:
 
 
 class OpenAIProvider:
-    name = "openai"
+    """OpenAI chat completions; also any OpenAI-compatible endpoint via ``base_url`` (Groq)."""
 
-    def __init__(self, api_key: str | None) -> None:
+    def __init__(
+        self,
+        api_key: str | None,
+        *,
+        name: str = "openai",
+        base_url: str | None = None,
+        key_env: str = "OPENAI_API_KEY",
+    ) -> None:
+        self.name = name
         if not api_key:
-            raise ProviderUnavailable("OPENAI_API_KEY is not set")
+            raise ProviderUnavailable(f"{key_env} is not set")
         try:
             import openai
         except ImportError as e:
             raise ProviderUnavailable("openai SDK not installed (uv sync --extra openai)") from e
         self._sdk = openai
         self._key = api_key
+        self._base_url = base_url
 
     def call(
         self,
@@ -142,7 +154,9 @@ class OpenAIProvider:
         timeout: float,
         json_mode: bool,
     ) -> RawCompletion:
-        client = self._sdk.OpenAI(api_key=self._key, max_retries=0, timeout=timeout)
+        client = self._sdk.OpenAI(
+            api_key=self._key, base_url=self._base_url, max_retries=0, timeout=timeout
+        )
         msgs = ([{"role": "system", "content": system}] if system else []) + _merge_turns(messages)
         kwargs: dict[str, Any] = {
             "model": model_id,
@@ -230,4 +244,8 @@ def build_provider(name: str) -> Provider:
         return OpenAIProvider(s.openai_api_key)
     if name == "google":
         return GoogleProvider(s.google_api_key)
+    if name == "groq":
+        return OpenAIProvider(
+            s.groq_api_key, name="groq", base_url=GROQ_BASE_URL, key_env="GROQ_API_KEY"
+        )
     raise ModelSpecError(f"unknown provider {name!r}")

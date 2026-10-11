@@ -33,6 +33,7 @@ def info(ping: bool = typer.Option(False, "--ping", help="Also check DB connecti
         ("ANTHROPIC_API_KEY", s.anthropic_api_key),
         ("OPENAI_API_KEY", s.openai_api_key),
         ("GOOGLE_API_KEY", s.google_api_key),
+        ("GROQ_API_KEY", s.groq_api_key),
         ("VOYAGE_API_KEY", s.voyage_api_key),
     ):
         t.add_row(label, "[green]set[/green]" if value else "[dim]unset[/dim]")
