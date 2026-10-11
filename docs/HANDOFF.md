@@ -43,3 +43,70 @@ Append one entry per sync: time, track, what landed on main, what's next, anythi
 
 - (2026-10-11, Track A, X1 cross-review of Track B; on `person_A`)
   - **For Track B:** `docs/XREVIEW_TRACK_B.md` lists 5 issues in `env/apply.py` / `scoring.py` (precomputed answers built from "free" constants, droppable sort tie-breaks, droppable `$match` predicates in aggregate rewrites, wildcard indexes, drop-and-recreate credit) plus what held. Tests are in `tests/core/test_xreview_track_b.py` as `xfail(strict=True)`: when you fix one, its test XPASSes and fails the run; delete the `@hole` marker then. Validators only, nothing was run on the sandbox.
+
+- **Sync 1 — Track C (branch `C`)**
+  - *Landed:* `ratchet.llm.complete(role, model, messages, tools=None, json_schema=None, *, system,
+    temperature, max_tokens)` → `LLMResponse` (`text`, `data`, `parsed`, `tokens`, `input_tokens`,
+    `output_tokens`, `cost_usd`, `cached`, `model`). `provider:model` ids; anthropic required,
+    openai/google optional (`ProviderUnavailable` when no key; `llm.available(model)` to check).
+    `{"role":"system"}` messages are folded into the system prompt. Mongo `llm_cache` keyed by
+    sha256(model, system, messages, params) (in-memory when no URI). JSON mode accepts a dict schema
+    or a pydantic class, validates, retries 2x with the validation error, then `LLMJSONError`.
+    Backoff on 408/409/429/5xx/timeouts. `llm.embed(texts)` → Voyage (cached) or local fallback;
+    `RATCHET_EMBED_MODE=atlas` flags Atlas automated embeddings. `ratchet.agent.tune(workload,
+    harness, env, mode, *, api, llm, memory, harness_version, critic)` → `TuneResult` with full trace;
+    runs end to end on `FakeEnv`. `ratchet tune <workload> [--version V] [--fake] [--json]`.
+  - *Seams / asks:* **B** — `tune()` calls module functions on `ratchet.env`: `measure(env, w)`,
+    `run_detectors(env, w, m)`, `apply_plan(env, w, plan)`, `score(w, before, after, plan, apply)`,
+    `query_shape(q)`; optional `collection_stats(env, coll)`, `sample_docs(env, coll, n)` (used only
+    if present). `measure(env, w)` must measure the *current* (rewritten) queries held by the scratch
+    env. Apply reports should be pydantic with list / dict-of-list fields (rounds are merged).
+    **A** — `RealBackend` already matches `tune(w, harness, scratch, mode)`. Memory: `tune()` calls
+    `ratchet.memory.recall(shape, policy)` if it exists; lessons may be str, dict or objects with
+    `.text`. `init` should keep the unique index on `llm_cache.key`.
+  - *Next (C):* critic + revisions, model routing/retry policy, tools incl. `self_diagnose` /
+    `recall_lessons`, inner attacks.
+  - *Broken / not verified:* no live run yet — this checkout has no `.env` (needs `RATCHET_NS=c`,
+    `ANTHROPIC_API_KEY`, Atlas URIs). OpenAI/Google adapters are written against current SDK docs
+    but untested without keys. Current Claude models reject `temperature`; determinism comes from
+    `llm_cache`, not temperature 0.
+- **Sync 2 — Track C (branch `C`)**
+  - *Landed:* critic (`agent/critic.py`): a model different from the planner (other provider
+    preferred: harness `model_routing.critic` → `RATCHET_CRITIC_MODEL` → `anthropic:claude-sonnet-5-5`)
+    reviews every plan against base checks + `critic_rubric`; uses its revised plan or has the
+    planner revise, up to `critic_policy.max_revisions`; fails open; verdicts in the trace;
+    `tune()` runs it by default whenever the harness enables it. Planner tools (`agent/tools.py`):
+    `explain`, `list_indexes`, `collection_stats`, `sample_docs`, `findings`, `recall_lessons`
+    (gated by `memory_policy.inject.mode`), `self_diagnose` (→ `TuneResult.self_diagnostics`),
+    via a JSON tool protocol that works for every provider and FakeLLM. Forbidden-action scan on
+    the planner's raw JSON (unknown types, types outside `allowed_actions`, unique/sparse/TTL/hidden,
+    `_id_` drop, `$out`/`$merge`/`hint`) → `FORBIDDEN_ACTION`, score 0. `ratchet attack --inner`
+    (`--fake` works offline): all four SPEC §14 inner cheats rejected via the agent path; three of
+    four also caught by the scorer alone.
+  - *Asks:* **A** (contracts, additive): `IndexDef` drops unknown keys, so `unique: true` can't reach
+    Track B's apply; the agent scan catches it today. Consider `model_config = ConfigDict(extra="allow")`
+    on `IndexDef` so B's apply can also reject it (`FORBIDDEN_ACTION`) on the scorer path.
+    **A**: `ratchet attack --outer` will call your static gate (`check_static(parent, patch)`) and
+    dynamic gate (`check_dynamic(parent_scores, cand_scores)`); please keep those names stable.
+  - *Next (C):* attack outer part, transfer, chart, watch, replay, README + DEMO.md.
+  - *Broken / not verified:* still no live run (no `.env` in this checkout). OpenAI/Google adapters
+    untested without keys.
+- **Phase 3 / freeze-ready — Track C (branch `C`)**
+  - *Landed:* `ratchet attack` now has both levels: 4 inner cheats (agent path + scorer-only path)
+    and 5 outer cheats through Track A's `check_static` / `check_dynamic` (loaded lazily; shown as
+    `n/a` until the gate is on main). Verified locally against `origin/person_A` merged into a
+    throwaway worktree: **all 12 cheats rejected** with the expected codes, all Track C tests pass.
+    `ratchet transfer` (gen 0 vs best on holdout per callable planner model → `transfer_runs` +
+    `docs/transfer.md`), `ratchet chart` (`docs/chart.png` from `generations`, fallback
+    `harness_versions`), `ratchet watch` (change streams, polling fallback), `ratchet replay
+    [--gen N | --version V]` (cache-only LLM client; misses reported), `RATCHET_LLM_CACHE_ONLY=1`
+    for any command. README (results table left as TODO for the final run) and `docs/DEMO.md`
+    (3-min script, pre-flight, fallbacks, 60-s video script).
+  - *Asks:* **A** — `tests/core/test_evolve.py::test_proposer_never_sees_holdout_canary_or_gate_source`
+    fails on Windows: a `read_text()` without `encoding="utf-8"` hits cp1252 on `gate/leakage.py`.
+    Merging `person_A` into `C` conflicts only in `docs/HANDOFF.md` (both append; keep both).
+    **B** — please drop `docs/README_measurement.md`; I'll merge it into the README's "How
+    measurement works" section.
+  - *Next (C):* live `ratchet tune` on the sandbox once `.env` exists; real numbers into README
+    after A's full run; README references need verifying; record video.
+  - *Broken / not verified:* nothing live yet (no `.env` here). OpenAI/Google adapters untested.
