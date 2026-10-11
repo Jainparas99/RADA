@@ -1,9 +1,8 @@
 """X1 cross-review: Track A attacking Track B's `env/apply.py` and `scoring.py`.
 
-Pure tests (no database). Each `xfail(strict=True)` test is a plan that should be refused or
-score no better than doing nothing, and currently is not. They are strict so that when Track B
-closes a hole the test XPASSes, fails the run, and tells us to delete the marker.
-Notes for Track B: docs/XREVIEW_TRACK_B.md.
+Pure tests (no database). Sections 1-4 were open holes when the review was written; they are
+now closed in `env/apply.py` and `scoring.py`, and these tests keep them closed.
+Write-up: docs/XREVIEW_TRACK_B.md.
 """
 
 import pytest
@@ -16,8 +15,6 @@ from ratchet.scoring import score
 WORKLOADS = {w.id: w for w in load_workload_files()}
 W = WORKLOADS["mflix_w02"]
 Q = {q.id: q for q in W.queries}
-
-hole = pytest.mark.xfail(strict=True, reason="open hole reported to Track B (X1)")
 
 
 def problems(original: QuerySpec, **changes) -> list[str]:
@@ -44,7 +41,6 @@ def empty_measurement() -> Measurement:
 # ------------------------------------------------------------- 1. precomputed answers
 
 
-@hole
 def test_precomputed_count_built_from_free_numbers_is_refused():
     """q2 is `... | $count: n`. NEW_LITERAL lets 0/1/-1 through, and any integer can be built
     from them, so the answer can be hard-coded without a single "new" constant. The rewrite
@@ -54,7 +50,6 @@ def test_precomputed_count_built_from_free_numbers_is_refused():
     assert problems(Q["q2"], pipeline=cheat)
 
 
-@hole
 def test_constants_hidden_in_object_keys_are_refused():
     """`_atoms` skips dict keys, so a literal object can carry data in its keys."""
     three = {"$size": {"$objectToArray": {"$literal": {"a": 1, "b": 1, "c": 1}}}}
@@ -65,19 +60,16 @@ def test_constants_hidden_in_object_keys_are_refused():
 # ------------------------------------------------------------- 2. semantics changed, results equal
 
 
-@hole
 def test_find_rewrite_cannot_drop_the_sort_tie_break():
     """Dropping `_id` from the sort makes the top-10 non-deterministic. On today's data the
     order usually comes out the same, so the hash matches and a cheaper index satisfies it."""
     assert problems(Q["q1"], sort=[Q["q1"].sort[0]])
 
 
-@hole
 def test_find_rewrite_cannot_drop_the_sort_entirely():
     assert problems(Q["q1"], sort=None)
 
 
-@hole
 def test_aggregate_rewrite_cannot_drop_the_sort_tie_break():
     pipe = [dict(s) for s in Q["q5"].pipeline]
     assert pipe[3] == {"$sort": {"n": -1, "_id": 1}}
@@ -85,7 +77,6 @@ def test_aggregate_rewrite_cannot_drop_the_sort_tie_break():
     assert problems(Q["q5"], pipeline=pipe)
 
 
-@hole
 def test_aggregate_rewrite_cannot_drop_a_predicate():
     """A find rewrite must keep its filter; an aggregate rewrite may silently lose a $match
     condition. If that condition happens to be true for every matching document today, the
@@ -99,7 +90,6 @@ def test_aggregate_rewrite_cannot_drop_a_predicate():
 # ------------------------------------------------------------- 3. index budget
 
 
-@hole
 @pytest.mark.parametrize("field", ["$**", "imdb.$**"])
 def test_wildcard_index_is_refused(field):
     """One wildcard index is "index every field" for the price of one budget slot, which is
@@ -110,7 +100,6 @@ def test_wildcard_index_is_refused(field):
 # ------------------------------------------------------------- 4. scorer
 
 
-@hole
 def test_dropping_and_recreating_the_same_index_scores_nothing():
     """Drop an unused baseline index and create it again under a new name: nothing changed,
     but the plan earns the γ credit, which outweighs α·write_rate + β·size on a quiet
@@ -197,3 +186,50 @@ def test_actions_outside_the_workload_are_refused():
 def test_every_workload_collection_has_an_index_budget():
     for w in WORKLOADS.values():
         assert set(w.collections) <= set(w.index_budget), w.id
+
+
+# ------------------------------------------------------------- honest rewrites still pass
+
+
+def test_moving_a_match_earlier_is_still_allowed():
+    """q5 with its stages reordered so a narrowing $project comes before the $lookup."""
+    pipe = [dict(s) for s in Q["q5"].pipeline]
+    early = [pipe[0], {"$project": {"title": 1}}, *pipe[1:]]
+    assert problems(Q["q5"], pipeline=early) == []
+
+
+def test_reordering_stages_and_splitting_a_match_is_still_allowed():
+    pipe = [dict(s) for s in Q["q5"].pipeline]
+    split = [{"$match": {"year": 1999}}, {"$match": {"genres": "Horror"}}, *pipe[1:]]
+    assert problems(Q["q5"], pipeline=split) == []
+
+
+def test_find_rewrite_may_reorder_projection_keys():
+    assert problems(Q["q1"], projection={"imdb.rating": 1, "title": 1}) == []
+
+
+@pytest.mark.parametrize(
+    "stage",
+    [
+        {"$addFields": {"n": 1}},
+        {"$set": {"n": True}},
+        {"$project": {"_id": 0, "n": {"$eq": [1, 1]}}},
+    ],
+)
+def test_fields_computed_from_constants_alone_are_refused(stage):
+    """Even 0 / 1 / true cannot be hard-coded as an answer."""
+    assert any("CONSTANT_FIELD" in p for p in problems(Q["q2"], pipeline=[{"$limit": 1}, stage]))
+
+
+@pytest.mark.parametrize(
+    "expr",
+    [
+        {"$toObjectId": {"$concat": ["$title", "$title"]}},
+        {"$substrCP": ["$title", 0, 1]},
+        {"$range": [0, 1]},
+        {"$literal": "$title"},
+    ],
+)
+def test_constant_building_operators_cannot_be_introduced(expr):
+    stage = {"$addFields": {"m": expr}}
+    assert any("NEW_OPERATOR" in p for p in problems(Q["q5"], pipeline=[*Q["q5"].pipeline, stage]))

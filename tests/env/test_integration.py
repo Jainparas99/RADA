@@ -174,7 +174,8 @@ def test_rewrite_that_reorders_ties(env, live_workload):
         live_workload,
         {"actions": [{"type": "rewrite_query", "query_id": "q1", "new_query": new}]},
     )
-    assert rep.ok and r.violations == ["RESULT_MISMATCH"]
+    # refused up front as a sort change (SORT_CHANGED), and still measured: the hash differs too
+    assert not rep.ok and r.violations == ["RESULT_MISMATCH", "FORBIDDEN_ACTION"]
 
 
 def test_projection_reorder_is_fine(env, live_workload):
@@ -359,7 +360,8 @@ def test_apply_error_invalid_rewrite(env, live_workload):
             ]
         },
     )
-    assert r.violations == ["APPLY_ERROR"] and rep.effective_queries == live_workload.queries
+    # the rewrite also drops the $lookup (DROPPED_LITERAL), so FORBIDDEN_ACTION rides along
+    assert "APPLY_ERROR" in r.violations and rep.effective_queries == live_workload.queries
 
 
 def test_rewrite_freq_cannot_discount_cost(env, live_workload):

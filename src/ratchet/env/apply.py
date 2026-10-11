@@ -7,12 +7,24 @@ not applied at all. Validation is pure (no DB) so it is cheap to test.
 Rules beyond the SPEC table, each closing a concrete cheat:
 
 * ``rewrite_query`` keeps ``id``, ``collection`` and ``kind``. A find rewrite may only
-  change ``projection`` key order and ``sort``; ``filter`` and ``limit`` must be identical.
+  change ``projection`` key order; ``filter``, ``sort`` and ``limit`` must be identical.
 * A rewrite may not introduce constants that are not in the original query
   (``NEW_LITERAL``): that blocks smuggling precomputed answers in, e.g. a
   ``{$match: {_id: {$in: [<the 10 answer ids>]}}}`` rewrite that returns the same results.
 * ``$lookup`` / ``$graphLookup`` / ``$unionWith`` may only reference workload collections.
 * Frequencies always come from the workload; a rewrite's ``freq`` is ignored.
+
+Added after Track A's cross-review (docs/XREVIEW_TRACK_B.md):
+
+* ``NEW_OPERATOR``: a rewrite may only add the restructuring operators in
+  ``RESTRUCTURING_OPERATORS``. Arithmetic, string and conversion operators, ``$literal``,
+  ``$range`` and the like can build any constant out of 0/1 and existing text, which defeats
+  ``NEW_LITERAL``.
+* ``CONSTANT_FIELD``: a rewrite may not add a computed field with no field reference in it.
+* ``DROPPED_LITERAL``: every constant of the original must still be in the rewrite, so a
+  ``$match`` condition cannot quietly disappear.
+* ``SORT_CHANGED``: a rewrite keeps every sort key; the ``_id`` tie-break cannot be dropped.
+* Wildcard index fields (``$**``) are refused: one slot must not index every field.
 """
 
 from __future__ import annotations
@@ -72,6 +84,24 @@ FORBIDDEN_STAGES = {
 }
 FORBIDDEN_OPERATORS = {"$where", "$function", "$accumulator", "$rand", "$sampleRate"}
 FORBIDDEN_VARS = {"$$NOW", "$$CLUSTER_TIME", "$$USER_ROLES", "$$SEARCH_META"}
+# Operators a rewrite may introduce even if the original query does not use them: enough to
+# move, split and narrow stages, and to turn a $lookup into its pipeline form.
+RESTRUCTURING_OPERATORS = {
+    "$match",
+    "$sort",
+    "$limit",
+    "$skip",
+    "$project",
+    "$unset",
+    "$addFields",
+    "$set",
+    "$unwind",
+    "$lookup",
+    "$expr",
+    "$eq",
+    "$and",
+}
+_COMPUTING_STAGES = ("$addFields", "$set", "$project")
 _FOREIGN_KEYS = {"$lookup": "from", "$graphLookup": "from", "$unionWith": "coll"}
 _FREE_NUMBERS = {0, 1, -1}
 
@@ -226,6 +256,94 @@ def query_atoms(q: QuerySpec) -> set[tuple[str, str]]:
     return out
 
 
+def _operators(obj: Any, out: set[str]) -> None:
+    """Every ``$``-prefixed key (stage or operator) anywhere in a query."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(k, str) and k.startswith("$"):
+                out.add(k)
+            _operators(v, out)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            _operators(v, out)
+
+
+def query_operators(q: QuerySpec) -> set[str]:
+    out: set[str] = set()
+    _operators([q.filter, q.projection, q.pipeline], out)
+    return out
+
+
+def _has_field_ref(obj: Any) -> bool:
+    if isinstance(obj, str):
+        return obj.startswith("$")
+    if isinstance(obj, dict):
+        return any(_has_field_ref(v) for v in obj.values())
+    if isinstance(obj, (list, tuple)):
+        return any(_has_field_ref(v) for v in obj)
+    return False
+
+
+def _constant_fields(new: QuerySpec, original: QuerySpec) -> list[str]:
+    """Fields a rewrite computes from constants alone, e.g. ``{$addFields: {n: 1}}`` or
+    ``{$project: {n: {...no field reference...}}}``. Stages copied from the original are
+    not looked at."""
+    known = {canonical(st) for st in (original.pipeline or [])}
+    out: list[str] = []
+    for st in new.pipeline or []:
+        if not isinstance(st, dict) or canonical(st) in known:
+            continue
+        for stage in _COMPUTING_STAGES:
+            body = st.get(stage)
+            if not isinstance(body, dict):
+                continue
+            for field, value in body.items():
+                inclusion = stage == "$project" and (isinstance(value, bool) or value in (0, 1))
+                if not inclusion and not _has_field_ref(value):
+                    out.append(field)
+    return out
+
+
+def _sort_keys(q: QuerySpec) -> tuple[set[tuple[str, Any]], list[set[str]]]:
+    """(all (field, direction) pairs sorted on, the field set of each sort) for a query."""
+    pairs: set[tuple[str, Any]] = set()
+    sorts: list[set[str]] = []
+    if q.sort:
+        pairs.update((k, v) for k, v in q.sort)
+        sorts.append({k for k, _ in q.sort})
+
+    def walk(obj: Any) -> None:
+        if isinstance(obj, dict):
+            spec = obj.get("$sort")
+            if isinstance(spec, dict):
+                pairs.update((k, canonical({"v": v})) for k, v in spec.items())
+                sorts.append(set(spec))
+            for v in obj.values():
+                walk(v)
+        elif isinstance(obj, (list, tuple)):
+            for v in obj:
+                walk(v)
+
+    walk(q.pipeline or [])
+    return pairs, sorts
+
+
+def _sort_problems(original: QuerySpec, new: QuerySpec) -> list[str]:
+    o_pairs, o_sorts = _sort_keys(original)
+    n_pairs, n_sorts = _sort_keys(new)
+    out: list[str] = []
+    if original.kind == "find":
+        if [tuple(x) for x in (new.sort or [])] != [tuple(x) for x in (original.sort or [])]:
+            out.append("SORT_CHANGED: find rewrite changes the sort")
+        return out
+    missing = sorted(k for k, _ in o_pairs - n_pairs)
+    if missing:
+        out.append(f"SORT_CHANGED: rewrite drops sort key(s): {', '.join(missing)}")
+    if any("_id" in s for s in o_sorts) and any("_id" not in s for s in n_sorts):
+        out.append("SORT_CHANGED: rewrite has a $sort without the _id tie-break")
+    return out
+
+
 def validate_rewrite(
     original: QuerySpec, new: QuerySpec, workload: Workload
 ) -> tuple[list[str], list[str]]:
@@ -256,10 +374,23 @@ def validate_rewrite(
                     errs.append("pipeline stage must be a single-key object")
                     break
     _scan([new.filter, new.projection, new.pipeline], workload, f"rewrite of {original.id}", errs)
-    new_atoms = query_atoms(new) - query_atoms(original)
+    old_atoms, cur_atoms = query_atoms(original), query_atoms(new)
+    new_atoms = cur_atoms - old_atoms
     if new_atoms:
         shown = ", ".join(sorted(v for _, v in new_atoms)[:5])
         soft.append(f"NEW_LITERAL: rewrite introduces constants not in the original: {shown}")
+    # A find rewrite's filter and limit are already pinned above; its projection may shrink.
+    lost = old_atoms - cur_atoms if original.kind == "aggregate" else set()
+    if lost:
+        shown = ", ".join(sorted(v for _, v in lost)[:5])
+        soft.append(f"DROPPED_LITERAL: rewrite loses constants of the original: {shown}")
+    new_ops = query_operators(new) - query_operators(original) - RESTRUCTURING_OPERATORS
+    if new_ops:
+        soft.append(f"NEW_OPERATOR: rewrite introduces {', '.join(sorted(new_ops))}")
+    constant = _constant_fields(new, original)
+    if constant:
+        soft.append(f"CONSTANT_FIELD: computed without any field: {', '.join(sorted(constant))}")
+    soft.extend(_sort_problems(original, new))
     return errs, soft
 
 
@@ -270,8 +401,10 @@ def validate_index(ix: IndexDef) -> list[str]:
     for field, v in ix.keys:
         if v not in ALLOWED_KEY_VALUES or isinstance(v, bool):
             errs.append(f"index key value {v!r} for {field!r} not allowed")
-        if not isinstance(field, str) or not field or (field.startswith("$") and field != "$**"):
+        if not isinstance(field, str) or not field or field.startswith("$"):
             errs.append(f"index field {field!r} not allowed")
+        elif "$**" in field:
+            errs.append(f"wildcard index field {field!r} not allowed")
     if ix.name == "_id_":
         errs.append("index name _id_ is reserved")
     if ix.partialFilterExpression is not None:
