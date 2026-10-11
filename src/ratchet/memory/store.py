@@ -20,6 +20,7 @@ from pymongo.database import Database
 from ratchet.contracts import QuerySpec, TuneResult
 from ratchet.db import MEMORIES
 from ratchet.gate.leakage import LeakTerms
+from ratchet.jsonsafe import jsonable
 from ratchet.memory.models import Lesson, LessonSource
 
 VECTOR_INDEX = "vector_index"
@@ -210,7 +211,7 @@ class MemoryStore:
             "findings": [
                 {"query_id": f.query_id, "detector": f.detector, "hint": f.hint} for f in r.findings
             ],
-            "plan": r.plan.model_dump(mode="json", exclude_none=True),
+            "plan": jsonable(r.plan, exclude_none=True),
         }
         messages = [
             {"role": "system", "content": SYSTEM.format(max_chars=max_chars)},

@@ -111,7 +111,7 @@ def save_results(db: Database, results: list[TuneResult]) -> None:
     for r in results:
         db[TUNE_RESULTS].replace_one(
             {"harness_version": r.harness_version, "workload_id": r.workload_id},
-            r.model_dump(mode="json"),
+            r.model_dump(mode="python"),  # BSON keeps ObjectIds and dates as they are
             upsert=True,
         )
 
