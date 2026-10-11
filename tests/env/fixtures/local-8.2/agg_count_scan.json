@@ -1,0 +1,198 @@
+{
+ "query": {
+  "id": "agg_count_scan",
+  "kind": "aggregate",
+  "collection": "movies",
+  "filter": {},
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": [
+   {
+    "$match": {
+     "year": 1999
+    }
+   },
+   {
+    "$count": "n"
+   }
+  ],
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "2",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "ratchet_scratch_fixtures.movies",
+      "parsedQuery": {
+       "year": {
+        "$eq": 1999
+       }
+      },
+      "indexFilterSet": false,
+      "queryHash": "9D339280",
+      "planCacheShapeHash": "9D339280",
+      "planCacheKey": "40447345",
+      "optimizationTimeMillis": 0,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+       "isCached": false,
+       "queryPlan": {
+        "stage": "GROUP",
+        "planNodeId": 2,
+        "inputStage": {
+         "stage": "COUNT_SCAN",
+         "planNodeId": 1,
+         "keyPattern": {
+          "year": 1
+         },
+         "indexName": "year_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "year": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": 2,
+         "indexBounds": {
+          "startKey": {
+           "year": 1999
+          },
+          "startKeyInclusive": true,
+          "endKey": {
+           "year": 1999
+          },
+          "endKeyInclusive": true
+         }
+        }
+       },
+       "slotBasedPlan": {
+        "slots": "$$RESULT=s6 env: {  }",
+        "stages": "[2] project [s6 = newObj(\"_id\", s4, \"n\", s5)] \n[2] project [s4 = null, s5 = (convert ( s3, int32) ?: s3)] \n[2] group [] [s3 = count()] spillSlots[s2] mergingExprs[sum(s2)] \n[1] ixseek KS(2C0F9E01) KS(2C0F9EFE) none s1 none none [] @\"a7b17f74-5832-4862-9c37-eb23bc04c76b\" @\"year_1\" true "
+       }
+      },
+      "rejectedPlans": []
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 1,
+      "executionTimeMillis": 0,
+      "totalKeysExamined": 109,
+      "totalDocsExamined": 0,
+      "executionStages": {
+       "stage": "project",
+       "planNodeId": 2,
+       "nReturned": 1,
+       "executionTimeMillisEstimate": 0,
+       "opens": 1,
+       "closes": 1,
+       "saveState": 2,
+       "restoreState": 1,
+       "isEOF": 1,
+       "projections": {
+        "6": "newObj(\"_id\", s4, \"n\", s5) "
+       },
+       "inputStage": {
+        "stage": "project",
+        "planNodeId": 2,
+        "nReturned": 1,
+        "executionTimeMillisEstimate": 0,
+        "opens": 1,
+        "closes": 1,
+        "saveState": 2,
+        "restoreState": 1,
+        "isEOF": 1,
+        "projections": {
+         "4": "null ",
+         "5": "(convert ( s3, int32) ?: s3) "
+        },
+        "inputStage": {
+         "stage": "group",
+         "planNodeId": 2,
+         "nReturned": 1,
+         "executionTimeMillisEstimate": 0,
+         "opens": 1,
+         "closes": 1,
+         "saveState": 2,
+         "restoreState": 1,
+         "isEOF": 1,
+         "groupBySlots": [],
+         "expressions": {
+          "3": "count() ",
+          "initExprs": {
+           "3": null
+          }
+         },
+         "mergingExprs": {
+          "2": "sum(s2) "
+         },
+         "usedDisk": false,
+         "spills": 0,
+         "spilledBytes": 0,
+         "spilledRecords": 0,
+         "spilledDataStorageSize": 0,
+         "inputStage": {
+          "stage": "ixseek",
+          "planNodeId": 1,
+          "nReturned": 109,
+          "executionTimeMillisEstimate": 0,
+          "opens": 1,
+          "closes": 1,
+          "saveState": 2,
+          "restoreState": 1,
+          "isEOF": 1,
+          "indexName": "year_1",
+          "keysExamined": 109,
+          "seeks": 1,
+          "numReads": 110,
+          "recordIdSlot": 1,
+          "outputSlots": [],
+          "indexKeysToInclude": "00000000000000000000000000000000",
+          "seekKeyLow": "KS(2C0F9E01) ",
+          "seekKeyHigh": "KS(2C0F9EFE) "
+         }
+        }
+       }
+      }
+     }
+    },
+    "nReturned": 1,
+    "executionTimeMillisEstimate": 0
+   },
+   {
+    "$project": {
+     "n": true,
+     "_id": false
+    },
+    "nReturned": 1,
+    "executionTimeMillisEstimate": 0
+   }
+  ],
+  "queryShapeHash": "2E25570FD2BA542FFABFCD951909B4A09796D3EA13A71363DB2E7BBDFE973577",
+  "command": {
+   "aggregate": "movies",
+   "pipeline": [
+    {
+     "$match": {
+      "year": 1999
+     }
+    },
+    {
+     "$count": "n"
+    }
+   ],
+   "cursor": {},
+   "$db": "ratchet_scratch_fixtures"
+  },
+  "ok": 1.0,
+  "serverInfo": {
+   "version": "8.2.1"
+  }
+ }
+}

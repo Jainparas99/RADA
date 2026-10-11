@@ -1,0 +1,172 @@
+{
+  "id": "airbnb_w02",
+  "split": "train",
+  "db": "sample_airbnb",
+  "collections": [
+    "listingsAndReviews"
+  ],
+  "baseline_indexes": {
+    "listingsAndReviews": [
+      {
+        "keys": [
+          [
+            "address.market",
+            1
+          ]
+        ],
+        "name": "address.market_1"
+      }
+    ]
+  },
+  "write_rate": {
+    "listingsAndReviews": 5.0
+  },
+  "index_budget": {
+    "listingsAndReviews": 3
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "aggregate",
+      "collection": "listingsAndReviews",
+      "pipeline": [
+        {
+          "$unwind": "$amenities"
+        },
+        {
+          "$match": {
+            "amenities": "Hot tub",
+            "address.market": "New York"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$room_type",
+            "n": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$sort": {
+            "_id": 1
+          }
+        }
+      ],
+      "freq": 10
+    },
+    {
+      "id": "q2",
+      "kind": "aggregate",
+      "collection": "listingsAndReviews",
+      "pipeline": [
+        {
+          "$match": {
+            "cancellation_policy": "super_strict_60"
+          }
+        },
+        {
+          "$project": {
+            "name": 1,
+            "price": 1
+          }
+        },
+        {
+          "$sort": {
+            "price": -1,
+            "_id": 1
+          }
+        },
+        {
+          "$limit": 10
+        }
+      ],
+      "freq": 12
+    },
+    {
+      "id": "q3",
+      "kind": "aggregate",
+      "collection": "listingsAndReviews",
+      "pipeline": [
+        {
+          "$match": {
+            "review_scores.review_scores_rating": 100,
+            "number_of_reviews": {
+              "$gte": 50
+            }
+          }
+        },
+        {
+          "$sort": {
+            "number_of_reviews": -1,
+            "_id": 1
+          }
+        },
+        {
+          "$limit": 10
+        },
+        {
+          "$project": {
+            "name": 1,
+            "number_of_reviews": 1
+          }
+        }
+      ],
+      "freq": 20
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "listingsAndReviews",
+      "filter": {
+        "bedrooms": {
+          "$gte": 5
+        },
+        "address.market": "Istanbul"
+      },
+      "freq": 6,
+      "sort": [
+        [
+          "beds",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1,
+        "beds": 1
+      }
+    },
+    {
+      "id": "q5",
+      "kind": "aggregate",
+      "collection": "listingsAndReviews",
+      "pipeline": [
+        {
+          "$match": {
+            "address.country_code": "US",
+            "property_type": "House"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$address.market",
+            "n": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$sort": {
+            "_id": 1
+          }
+        }
+      ],
+      "freq": 4
+    }
+  ],
+  "notes": "$unwind before $match; ESR (equality, sort, range) for review queries"
+}

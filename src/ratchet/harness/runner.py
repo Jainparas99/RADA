@@ -36,27 +36,47 @@ def load_workload_files(directory: Path | None = None) -> list[Workload]:
     ]
 
 
+class _EnvApi:
+    """`ratchet.env` plus `ratchet.scoring.score`: the one object Track C's `tune()` calls
+    `measure`, `run_detectors`, `apply_plan`, `score` and `query_shape` on."""
+
+    def __init__(self, env_module, score) -> None:
+        self._env = env_module
+        self.score = score
+
+    def __getattr__(self, name: str):
+        return getattr(self._env, name)
+
+
 class RealBackend:
-    """Track B environment + Track C agent, imported lazily so Track A works before they land."""
+    """Track B environment + Track C agent, imported lazily so Track A works before they land.
+
+    Workloads in one namespace share scratch collections, so runs are strictly sequential.
+    """
 
     name = "atlas"
 
     def __init__(self, ns: str | None = None) -> None:
         try:
+            import ratchet.env as env_module
             from ratchet.agent import tune  # type: ignore[attr-defined]
-            from ratchet.env import prepare_scratch  # type: ignore[attr-defined]
-        except ImportError as e:
+            from ratchet.scoring import score  # type: ignore[attr-defined]
+
+            self._prepare = env_module.prepare_scratch
+        except (ImportError, AttributeError) as e:
             raise BackendUnavailable(
                 f"real backend not available yet ({e}); use --fake until Tracks B and C land"
             ) from e
-        self._tune, self._prepare = tune, prepare_scratch
+        self._tune = tune
+        self._api = _EnvApi(env_module, score)
         self.ns = ns or get_settings().ns
 
     def workloads(self, split: Split | None = None) -> list[Workload]:
         return [w for w in load_workload_files() if split is None or w.split == split]
 
     def tune(self, workload: Workload, harness: HarnessSpec, mode: Mode) -> TuneResult:
-        return self._tune(workload, harness, self._prepare(workload, self.ns), mode)
+        scratch = self._prepare(workload, self.ns)
+        return self._tune(workload, harness, scratch, mode, api=self._api)
 
 
 class SplitSummary(BaseModel):

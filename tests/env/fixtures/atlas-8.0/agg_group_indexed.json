@@ -1,0 +1,306 @@
+{
+ "query": {
+  "id": "agg_group_indexed",
+  "kind": "aggregate",
+  "collection": "movies",
+  "filter": {},
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": [
+   {
+    "$match": {
+     "year": {
+      "$gte": 1990
+     }
+    }
+   },
+   {
+    "$group": {
+     "_id": "$year",
+     "n": {
+      "$sum": 1
+     }
+    }
+   },
+   {
+    "$sort": {
+     "_id": 1
+    }
+   }
+  ],
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "2",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "ratchet_scratch_b.movies",
+      "parsedQuery": {
+       "year": {
+        "$gte": 1990
+       }
+      },
+      "indexFilterSet": false,
+      "queryHash": "52C6F238",
+      "planCacheShapeHash": "52C6F238",
+      "planCacheKey": "2B9E1118",
+      "optimizationTimeMillis": 0,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+       "isCached": false,
+       "queryPlan": {
+        "stage": "GROUP",
+        "planNodeId": 3,
+        "inputStage": {
+         "stage": "PROJECTION_COVERED",
+         "planNodeId": 2,
+         "transformBy": {
+          "year": true,
+          "_id": false
+         },
+         "inputStage": {
+          "stage": "IXSCAN",
+          "planNodeId": 1,
+          "keyPattern": {
+           "year": 1
+          },
+          "indexName": "year_1",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+           "year": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+           "year": [
+            "[1990, inf.0]"
+           ]
+          }
+         }
+        }
+       },
+       "slotBasedPlan": {
+        "slots": "$$RESULT=s7 env: {  }",
+        "stages": "[3] project [s7 = newObj(\"_id\", s4, \"n\", s6)] \n[3] project [s6 = (convert ( s5, int32) ?: s5)] \n[3] group [s4] [s5 = count()] spillSlots[s3] mergingExprs[sum(s3)] \n[3] project [s4 = (s1 ?: null)] \n[1] ixseek KS(2C0F8C0104) KS(33FFFFFFFFFFFFFFFFFE04) none s2 none none [s1 = 0] @\"3a33e031-f446-4bd0-914f-6c6f37e07869\" @\"year_1\" true "
+       }
+      },
+      "rejectedPlans": [
+       {
+        "isCached": false,
+        "stage": "PROJECTION_COVERED",
+        "transformBy": {
+         "year": 1,
+         "_id": 0
+        },
+        "inputStage": {
+         "stage": "IXSCAN",
+         "keyPattern": {
+          "year": 1,
+          "title": 1
+         },
+         "indexName": "year_1_title_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "year": [],
+          "title": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": 2,
+         "direction": "forward",
+         "indexBounds": {
+          "year": [
+           "[1990, inf.0]"
+          ],
+          "title": [
+           "[MinKey, MaxKey]"
+          ]
+         }
+        }
+       }
+      ]
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 27,
+      "executionTimeMillis": 9,
+      "totalKeysExamined": 16127,
+      "totalDocsExamined": 0,
+      "executionStages": {
+       "stage": "project",
+       "planNodeId": 3,
+       "nReturned": 27,
+       "executionTimeMillisEstimate": 0,
+       "opens": 1,
+       "closes": 1,
+       "saveState": 1,
+       "restoreState": 1,
+       "isEOF": 1,
+       "projections": {
+        "7": "newObj(\"_id\", s4, \"n\", s6) "
+       },
+       "inputStage": {
+        "stage": "project",
+        "planNodeId": 3,
+        "nReturned": 27,
+        "executionTimeMillisEstimate": 0,
+        "opens": 1,
+        "closes": 1,
+        "saveState": 1,
+        "restoreState": 1,
+        "isEOF": 1,
+        "projections": {
+         "6": "(convert ( s5, int32) ?: s5) "
+        },
+        "inputStage": {
+         "stage": "group",
+         "planNodeId": 3,
+         "nReturned": 27,
+         "executionTimeMillisEstimate": 0,
+         "opens": 1,
+         "closes": 1,
+         "saveState": 1,
+         "restoreState": 1,
+         "isEOF": 1,
+         "groupBySlots": [
+          4
+         ],
+         "expressions": {
+          "5": "count() ",
+          "initExprs": {
+           "5": null
+          }
+         },
+         "mergingExprs": {
+          "3": "sum(s3) "
+         },
+         "usedDisk": false,
+         "spills": 0,
+         "spilledBytes": 0,
+         "spilledRecords": 0,
+         "spilledDataStorageSize": 0,
+         "inputStage": {
+          "stage": "project",
+          "planNodeId": 3,
+          "nReturned": 16127,
+          "executionTimeMillisEstimate": 0,
+          "opens": 1,
+          "closes": 1,
+          "saveState": 1,
+          "restoreState": 1,
+          "isEOF": 1,
+          "projections": {
+           "4": "(s1 ?: null) "
+          },
+          "inputStage": {
+           "stage": "ixseek",
+           "planNodeId": 1,
+           "nReturned": 16127,
+           "executionTimeMillisEstimate": 0,
+           "opens": 1,
+           "closes": 1,
+           "saveState": 1,
+           "restoreState": 1,
+           "isEOF": 1,
+           "indexName": "year_1",
+           "keysExamined": 16127,
+           "seeks": 1,
+           "numReads": 16128,
+           "recordIdSlot": 2,
+           "outputSlots": [
+            1
+           ],
+           "indexKeysToInclude": "00000000000000000000000000000001",
+           "seekKeyLow": "KS(2C0F8C0104) ",
+           "seekKeyHigh": "KS(33FFFFFFFFFFFFFFFFFE04) "
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "nReturned": 27,
+    "executionTimeMillisEstimate": 1
+   },
+   {
+    "$sort": {
+     "sortKey": {
+      "_id": 1
+     }
+    },
+    "totalDataSizeSortedBytesEstimate": 6831,
+    "usedDisk": false,
+    "spills": 0,
+    "spilledDataStorageSize": 0,
+    "nReturned": 27,
+    "executionTimeMillisEstimate": 1
+   }
+  ],
+  "queryShapeHash": "85383B4753D16F493E24399D7DCE5D94B3ABAFA0A012E9BA3A73FCE156C024C6",
+  "command": {
+   "aggregate": "movies",
+   "pipeline": [
+    {
+     "$match": {
+      "year": {
+       "$gte": 1990
+      }
+     }
+    },
+    {
+     "$group": {
+      "_id": "$year",
+      "n": {
+       "$sum": 1
+      }
+     }
+    },
+    {
+     "$sort": {
+      "_id": 1
+     }
+    }
+   ],
+   "cursor": {},
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748457,
+     "i": 12
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "eT2SOZ9xp01TqEACm5q2HLdCALg=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748457,
+    "i": 12
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

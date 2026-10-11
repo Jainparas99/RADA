@@ -1,0 +1,208 @@
+{
+ "query": {
+  "id": "find_projection_covered",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "year": 1999
+  },
+  "projection": {
+   "title": 1,
+   "_id": 0
+  },
+  "sort": null,
+  "limit": null,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_b.movies",
+   "parsedQuery": {
+    "year": {
+     "$eq": 1999
+    }
+   },
+   "indexFilterSet": false,
+   "queryHash": "E86D558B",
+   "planCacheShapeHash": "E86D558B",
+   "planCacheKey": "B33B66A5",
+   "optimizationTimeMillis": 0,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "PROJECTION_COVERED",
+    "transformBy": {
+     "title": 1,
+     "_id": 0
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "keyPattern": {
+      "year": 1,
+      "title": 1
+     },
+     "indexName": "year_1_title_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "year": [],
+      "title": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": 2,
+     "direction": "forward",
+     "indexBounds": {
+      "year": [
+       "[1999, 1999]"
+      ],
+      "title": [
+       "[MinKey, MaxKey]"
+      ]
+     }
+    }
+   },
+   "rejectedPlans": [
+    {
+     "isCached": false,
+     "stage": "PROJECTION_SIMPLE",
+     "transformBy": {
+      "title": 1,
+      "_id": 0
+     },
+     "inputStage": {
+      "stage": "FETCH",
+      "inputStage": {
+       "stage": "IXSCAN",
+       "keyPattern": {
+        "year": 1
+       },
+       "indexName": "year_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "year": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": 2,
+       "direction": "forward",
+       "indexBounds": {
+        "year": [
+         "[1999, 1999]"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 515,
+   "executionTimeMillis": 1,
+   "totalKeysExamined": 515,
+   "totalDocsExamined": 0,
+   "executionStages": {
+    "isCached": false,
+    "stage": "PROJECTION_COVERED",
+    "nReturned": 515,
+    "executionTimeMillisEstimate": 0,
+    "works": 516,
+    "advanced": 515,
+    "needTime": 0,
+    "needYield": 0,
+    "saveState": 0,
+    "restoreState": 0,
+    "isEOF": 1,
+    "transformBy": {
+     "title": 1,
+     "_id": 0
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "nReturned": 515,
+     "executionTimeMillisEstimate": 0,
+     "works": 516,
+     "advanced": 515,
+     "needTime": 0,
+     "needYield": 0,
+     "saveState": 0,
+     "restoreState": 0,
+     "isEOF": 1,
+     "keyPattern": {
+      "year": 1,
+      "title": 1
+     },
+     "indexName": "year_1_title_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "year": [],
+      "title": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": 2,
+     "direction": "forward",
+     "indexBounds": {
+      "year": [
+       "[1999, 1999]"
+      ],
+      "title": [
+       "[MinKey, MaxKey]"
+      ]
+     },
+     "keysExamined": 515,
+     "seeks": 1,
+     "dupsTested": 0,
+     "dupsDropped": 0
+    }
+   }
+  },
+  "queryShapeHash": "B88F4025D83FD205D51D2C42A87A273E7D75C76E3729821D576F17E3581FE2C8",
+  "command": {
+   "find": "movies",
+   "filter": {
+    "year": 1999
+   },
+   "projection": {
+    "title": 1,
+    "_id": 0
+   },
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748442,
+     "i": 17
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "NYoKtj4xyZb8mV3AOUh+W7RsEWc=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748442,
+    "i": 17
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

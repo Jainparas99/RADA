@@ -1,3 +1,4 @@
+import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
@@ -88,7 +89,24 @@ def test_cli_eval_fake_prints_a_table(monkeypatch):
     assert "fake_holdout_01" in out.output and "FAKE" in out.output and "mean score" in out.output
 
 
-def test_cli_eval_rejects_bad_split_and_missing_real_backend():
+def test_cli_eval_rejects_bad_split_and_needs_config_for_the_real_backend(monkeypatch):
     assert CliRunner().invoke(app, ["eval", "--split", "test", "--fake"]).exit_code == 1
+    for var in ("MONGODB_URI_RW", "MONGODB_URI_RO"):
+        monkeypatch.setenv(var, "")
+    from ratchet.config import get_settings
+
+    get_settings.cache_clear()
     out = CliRunner().invoke(app, ["eval", "--split", "train"])
-    assert out.exit_code == 1 and "--fake" in out.output
+    get_settings.cache_clear()
+    assert out.exit_code == 1 and "error:" in out.output
+
+
+def test_real_backend_gives_tune_an_api_with_score():
+    try:
+        backend = runner.RealBackend(ns="test")
+    except runner.BackendUnavailable as e:  # Track C's agent is not merged into this tree yet
+        pytest.skip(str(e))
+    assert callable(backend._api.score) and callable(backend._api.measure)
+    assert getattr(backend._api, "no_such_function", None) is None
+    splits = [w.split for w in backend.workloads()]
+    assert (splits.count("train"), splits.count("holdout"), splits.count("canary")) == (8, 4, 3)

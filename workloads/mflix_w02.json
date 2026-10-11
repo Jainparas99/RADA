@@ -1,0 +1,181 @@
+{
+  "id": "mflix_w02",
+  "split": "train",
+  "db": "sample_mflix",
+  "collections": [
+    "movies",
+    "comments"
+  ],
+  "baseline_indexes": {
+    "movies": [
+      {
+        "keys": [
+          [
+            "year",
+            1
+          ]
+        ],
+        "name": "year_1"
+      }
+    ],
+    "comments": []
+  },
+  "write_rate": {
+    "movies": 2.0,
+    "comments": 40.0
+  },
+  "index_budget": {
+    "movies": 3,
+    "comments": 2
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "movies",
+      "filter": {
+        "genres": "Comedy",
+        "year": {
+          "$gte": 2010
+        }
+      },
+      "freq": 40,
+      "sort": [
+        [
+          "imdb.rating",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 10,
+      "projection": {
+        "title": 1,
+        "imdb.rating": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "aggregate",
+      "collection": "comments",
+      "pipeline": [
+        {
+          "$lookup": {
+            "from": "movies",
+            "localField": "movie_id",
+            "foreignField": "_id",
+            "as": "m"
+          }
+        },
+        {
+          "$unwind": "$m"
+        },
+        {
+          "$match": {
+            "m.year": 2012,
+            "date": {
+              "$gte": {
+                "$date": "2016-01-01T00:00:00Z"
+              }
+            }
+          }
+        },
+        {
+          "$count": "n"
+        }
+      ],
+      "freq": 5
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "comments",
+      "filter": {
+        "movie_id": {
+          "$oid": "573a13bff29313caabd5e91e"
+        }
+      },
+      "freq": 30,
+      "sort": [
+        [
+          "date",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 20,
+      "projection": {
+        "name": 1,
+        "date": 1
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "comments",
+      "filter": {
+        "name": "Mace Tyrell"
+      },
+      "freq": 25,
+      "sort": [
+        [
+          "date",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 25,
+      "projection": {
+        "text": 0
+      }
+    },
+    {
+      "id": "q5",
+      "kind": "aggregate",
+      "collection": "movies",
+      "pipeline": [
+        {
+          "$match": {
+            "year": 1999,
+            "genres": "Horror"
+          }
+        },
+        {
+          "$lookup": {
+            "from": "comments",
+            "localField": "_id",
+            "foreignField": "movie_id",
+            "as": "c"
+          }
+        },
+        {
+          "$project": {
+            "title": 1,
+            "n": {
+              "$size": "$c"
+            }
+          }
+        },
+        {
+          "$sort": {
+            "n": -1,
+            "_id": 1
+          }
+        },
+        {
+          "$limit": 10
+        }
+      ],
+      "freq": 3
+    }
+  ],
+  "notes": "spec example family: $match on local field after $lookup+$unwind; unindexed $lookup on comments.movie_id; write-heavy comments"
+}

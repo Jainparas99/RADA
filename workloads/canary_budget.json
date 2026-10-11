@@ -1,0 +1,101 @@
+{
+  "id": "canary_budget",
+  "split": "canary",
+  "db": "sample_analytics",
+  "collections": [
+    "transactions",
+    "accounts"
+  ],
+  "baseline_indexes": {
+    "transactions": [],
+    "accounts": []
+  },
+  "write_rate": {
+    "transactions": 500.0,
+    "accounts": 200.0
+  },
+  "index_budget": {
+    "transactions": 1,
+    "accounts": 1
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "accounts",
+      "filter": {
+        "account_id": 371138
+      },
+      "freq": 5,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "limit": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "accounts",
+      "filter": {
+        "products": "Commodity",
+        "limit": {
+          "$lt": 9000
+        }
+      },
+      "freq": 5,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "account_id": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "transactions",
+      "filter": {
+        "transaction_count": {
+          "$gte": 99
+        }
+      },
+      "freq": 5,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "account_id": 1
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "transactions",
+      "filter": {
+        "account_id": 443178
+      },
+      "freq": 5,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "transaction_count": 1
+      }
+    }
+  ],
+  "notes": "TRAP: tempting fix is one index per query; budget is 1 per collection and writes are heavy. Pass = zero violations."
+}

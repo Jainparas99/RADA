@@ -6,7 +6,11 @@ static:
   leakage:
     min_term_chars: 3      # shorter holdout-only names are too generic to match on
     squash_min_chars: 6    # terms this long are also matched with separators stripped
-    ignore_terms: []       # holdout-only names that are plain English and safe to mention
+    # Held-out field names that are also plain query-tuning English. Without these a rule like
+    # "queries with a sort and a limit" would be rejected. Mirrors Track B's GENERIC_TERMS.
+    ignore_terms: [limit, items, item, month, best, qty, quantity, age, customer, region,
+                   channel, priority, products, result, date, name, type, score, scores,
+                   status, total, count, value, city, zip, address]
 
 dynamic:
   holdout_min_gain: 0.03           # NO_HOLDOUT_GAIN: holdout mean must beat parent by this...

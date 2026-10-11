@@ -1,0 +1,25 @@
+# Detector thresholds (SPEC §5.4). Detectors only diagnose; they never act.
+COLLSCAN_LARGE:
+  min_docs: 5000          # collection size above which a full scan is flagged
+  severity: high
+HIGH_EXAMINE_RATIO:
+  ratio: 50               # (keys + docs + lookup examined) / max(1, nReturned)
+  severity: medium
+IN_MEMORY_SORT:
+  severity: medium        # SORT stage the query layer could avoid with an index
+  severity_after_group: low   # $sort after $group/$unwind: no index can serve it
+NOT_COVERED:
+  max_projection_fields: 4
+  severity: low
+LATE_MATCH:
+  severity: high
+UNINDEXED_LOOKUP:
+  severity: high
+UNANCHORED_REGEX:
+  severity: low
+REDUNDANT_INDEX:
+  severity: medium
+UNUSED_INDEX:
+  write_heavy_rate: 10    # writes/sec at or above which an unused index is costly
+  severity: low
+  severity_write_heavy: medium

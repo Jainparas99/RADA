@@ -1,0 +1,179 @@
+{
+  "id": "orders_w01",
+  "split": "holdout",
+  "db": "ratchet_data",
+  "collections": [
+    "orders"
+  ],
+  "baseline_indexes": {
+    "orders": [
+      {
+        "keys": [
+          [
+            "status",
+            1
+          ]
+        ],
+        "name": "status_1"
+      },
+      {
+        "keys": [
+          [
+            "region",
+            1
+          ]
+        ],
+        "name": "region_1"
+      }
+    ]
+  },
+  "write_rate": {
+    "orders": 120.0
+  },
+  "index_budget": {
+    "orders": 4
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "orders",
+      "filter": {
+        "customer_id": 4242
+      },
+      "freq": 80,
+      "sort": [
+        [
+          "created_at",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 10,
+      "projection": {
+        "total_cents": 1,
+        "created_at": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "orders",
+      "filter": {
+        "status": "returned",
+        "region": "eu-west",
+        "created_at": {
+          "$gte": {
+            "$date": "2025-06-01T00:00:00Z"
+          },
+          "$lt": {
+            "$date": "2025-06-15T00:00:00Z"
+          }
+        }
+      },
+      "freq": 15,
+      "sort": [
+        [
+          "total_cents",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 20,
+      "projection": {
+        "total_cents": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "aggregate",
+      "collection": "orders",
+      "pipeline": [
+        {
+          "$match": {
+            "items.sku": "SKU-0042",
+            "status": "delivered"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$region",
+            "n": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$sort": {
+            "_id": 1
+          }
+        }
+      ],
+      "freq": 5
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "orders",
+      "filter": {
+        "priority": true,
+        "channel": "store",
+        "total_cents": {
+          "$gte": 20000
+        }
+      },
+      "freq": 8,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "total_cents": 1,
+        "region": 1
+      }
+    },
+    {
+      "id": "q5",
+      "kind": "aggregate",
+      "collection": "orders",
+      "pipeline": [
+        {
+          "$addFields": {
+            "month": {
+              "$month": "$created_at"
+            }
+          }
+        },
+        {
+          "$match": {
+            "customer_id": {
+              "$lt": 40
+            },
+            "month": 3
+          }
+        },
+        {
+          "$project": {
+            "total_cents": 1,
+            "month": 1
+          }
+        },
+        {
+          "$sort": {
+            "_id": 1
+          }
+        }
+      ],
+      "freq": 6
+    }
+  ],
+  "notes": "synthetic 200k docs (scripts/gen_synthetic.py, seed 7); very write-heavy, so index count matters; status_1/region_1 low selectivity"
+}

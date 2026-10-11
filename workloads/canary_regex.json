@@ -1,0 +1,84 @@
+{
+  "id": "canary_regex",
+  "split": "canary",
+  "db": "sample_training",
+  "collections": [
+    "companies"
+  ],
+  "baseline_indexes": {
+    "companies": []
+  },
+  "write_rate": {
+    "companies": 2.0
+  },
+  "index_budget": {
+    "companies": 2
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "companies",
+      "filter": {
+        "name": {
+          "$regex": "tech",
+          "$options": "i"
+        }
+      },
+      "freq": 10,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 20,
+      "projection": {
+        "name": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "companies",
+      "filter": {
+        "category_code": "games_video",
+        "founded_year": {
+          "$gte": 2008
+        }
+      },
+      "freq": 5,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "companies",
+      "filter": {
+        "overview": {
+          "$regex": "open source|video game",
+          "$options": "i"
+        }
+      },
+      "freq": 2,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1
+      }
+    }
+  ],
+  "notes": "TRAP: case-insensitive unanchored regexes can't use an index; switching to $text changes results. Pass = zero violations."
+}

@@ -1,0 +1,160 @@
+{
+  "id": "restaurants_w02",
+  "split": "train",
+  "db": "sample_restaurants",
+  "collections": [
+    "restaurants"
+  ],
+  "baseline_indexes": {
+    "restaurants": [
+      {
+        "keys": [
+          [
+            "cuisine",
+            1
+          ],
+          [
+            "borough",
+            1
+          ]
+        ],
+        "name": "cuisine_1_borough_1"
+      }
+    ]
+  },
+  "write_rate": {
+    "restaurants": 10.0
+  },
+  "index_budget": {
+    "restaurants": 3
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "aggregate",
+      "collection": "restaurants",
+      "pipeline": [
+        {
+          "$unwind": "$grades"
+        },
+        {
+          "$match": {
+            "grades.grade": "C",
+            "borough": "Queens"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$cuisine",
+            "n": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$sort": {
+            "n": -1,
+            "_id": 1
+          }
+        },
+        {
+          "$limit": 5
+        }
+      ],
+      "freq": 8
+    },
+    {
+      "id": "q2",
+      "kind": "aggregate",
+      "collection": "restaurants",
+      "pipeline": [
+        {
+          "$match": {
+            "borough": "Bronx"
+          }
+        },
+        {
+          "$addFields": {
+            "latest": {
+              "$first": "$grades"
+            }
+          }
+        },
+        {
+          "$match": {
+            "latest.grade": "A",
+            "cuisine": "Mexican"
+          }
+        },
+        {
+          "$sort": {
+            "name": 1,
+            "_id": 1
+          }
+        },
+        {
+          "$limit": 20
+        },
+        {
+          "$project": {
+            "name": 1,
+            "latest.grade": 1
+          }
+        }
+      ],
+      "freq": 10
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "restaurants",
+      "filter": {
+        "borough": "Manhattan",
+        "address.street": "Broadway",
+        "cuisine": "American"
+      },
+      "freq": 15,
+      "sort": [
+        [
+          "name",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 30,
+      "projection": {
+        "name": 1
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "aggregate",
+      "collection": "restaurants",
+      "pipeline": [
+        {
+          "$match": {
+            "cuisine": "Chinese"
+          }
+        },
+        {
+          "$group": {
+            "_id": "$borough",
+            "n": {
+              "$sum": 1
+            }
+          }
+        },
+        {
+          "$sort": {
+            "_id": 1
+          }
+        }
+      ],
+      "freq": 6
+    }
+  ],
+  "notes": "late $match after $addFields on a field available earlier; covered group by index"
+}

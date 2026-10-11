@@ -1,0 +1,170 @@
+{
+  "id": "mflix_w01",
+  "split": "train",
+  "db": "sample_mflix",
+  "collections": [
+    "movies"
+  ],
+  "baseline_indexes": {
+    "movies": [
+      {
+        "keys": [
+          [
+            "year",
+            1
+          ]
+        ],
+        "name": "year_1"
+      },
+      {
+        "keys": [
+          [
+            "year",
+            1
+          ],
+          [
+            "title",
+            1
+          ]
+        ],
+        "name": "year_1_title_1"
+      }
+    ]
+  },
+  "write_rate": {
+    "movies": 2.0
+  },
+  "index_budget": {
+    "movies": 4
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "movies",
+      "filter": {
+        "genres": "Drama",
+        "year": {
+          "$gt": 2000
+        }
+      },
+      "freq": 50,
+      "sort": [
+        [
+          "imdb.rating",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 10,
+      "projection": {
+        "title": 1,
+        "imdb.rating": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "movies",
+      "filter": {
+        "directors": "Martin Scorsese"
+      },
+      "freq": 20,
+      "sort": [
+        [
+          "year",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "title": 1,
+        "year": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "movies",
+      "filter": {
+        "countries": "France",
+        "rated": "R",
+        "year": {
+          "$gte": 1990,
+          "$lt": 2000
+        }
+      },
+      "freq": 10,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 50,
+      "projection": {
+        "title": 1
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "movies",
+      "filter": {
+        "type": "series",
+        "imdb.rating": {
+          "$gte": 8
+        }
+      },
+      "freq": 5,
+      "sort": [
+        [
+          "imdb.rating",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 25,
+      "projection": {
+        "title": 1,
+        "imdb.rating": 1,
+        "year": 1
+      }
+    },
+    {
+      "id": "q5",
+      "kind": "find",
+      "collection": "movies",
+      "filter": {
+        "title": {
+          "$regex": "^The Godfather"
+        }
+      },
+      "freq": 15,
+      "sort": [
+        [
+          "year",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "title": 1,
+        "year": 1
+      }
+    }
+  ],
+  "notes": "ESR order for genres+rating sort; COLLSCAN on directors; anchored prefix regex on title; year_1 is a redundant prefix of year_1_title_1"
+}

@@ -20,7 +20,8 @@ _PKG = Path(__file__).resolve().parents[1]  # src/ratchet
 
 
 def scorer_files() -> list[Path]:
-    return [_PKG / "scoring.py", config_dir() / "scoring.yaml"]
+    """Same set Track B pins in `scoring.SOURCE_HASH`; hashed here independently of the scorer."""
+    return [_PKG / "scoring.py", config_dir() / "scoring.yaml", _PKG / "env" / "explain.py"]
 
 
 def gate_files() -> list[Path]:
