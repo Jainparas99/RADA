@@ -247,6 +247,24 @@ def tune(
         render_result(r)
 
 
+def all_workloads(fake: bool) -> list[Workload]:
+    if fake:
+        fakes = _fakes()
+        if hasattr(fakes, "fake_workloads"):
+            return list(fakes.fake_workloads())
+        return [
+            fakes.sample_workload(),
+            fakes.sample_workload("fake_h01", "holdout", "orders"),
+        ]
+    out = []
+    for p in sorted((REPO_ROOT / "workloads").glob("*.json")):
+        try:
+            out.append(Workload.model_validate(json.loads(p.read_text(encoding="utf-8"))))
+        except ValueError:
+            continue
+    return out
+
+
 def _default_attack_workload(fake: bool) -> Workload:
     if fake:
         return _fakes().sample_workload()
@@ -305,7 +323,7 @@ def attack(
                 raise typer.Exit(1) from e
         results += atk.run_inner(w, api, lambda: api.prepare_scratch(w, settings.ns))
     if outer:
-        results += atk.run_outer() if hasattr(atk, "run_outer") else []
+        results += atk.run_outer(all_workloads(fake))
     console.print(render_attacks(results))
     failed = [r for r in results if r.passed is False]
     if failed:
