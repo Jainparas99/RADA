@@ -40,3 +40,6 @@ Append one entry per sync: time, track, what landed on main, what's next, anythi
   - **Contracts change (additive):** `IndexDef` and `Action` now use `extra="allow"`, so unknown keys such as `unique` survive `TuningPlan` parsing and reach `env.apply_plan` (which already reads `model_extra`). `FakeEnv` now returns `FORBIDDEN_ACTION` for any extra key.
   - **Windows:** every text read in Track A code and tests now passes `encoding="utf-8"`.
   - **Stable names for `attack --outer`:** `gate.static.check_static`, `gate.dynamic.check_dynamic`, `gate.dynamic.RunMetrics`, `harness.gen0.gen0_spec` will not be renamed.
+
+- (2026-10-11, Track A, X1 cross-review of Track B; on `person_A`)
+  - **For Track B:** `docs/XREVIEW_TRACK_B.md` lists 5 issues in `env/apply.py` / `scoring.py` (precomputed answers built from "free" constants, droppable sort tie-breaks, droppable `$match` predicates in aggregate rewrites, wildcard indexes, drop-and-recreate credit) plus what held. Tests are in `tests/core/test_xreview_track_b.py` as `xfail(strict=True)`: when you fix one, its test XPASSes and fails the run; delete the `@hole` marker then. Validators only, nothing was run on the sandbox.
