@@ -151,3 +151,12 @@ def test_cross_split_collections_must_differ():
     other_db = ho.model_copy(update={"db": "other"})
     _, cross = check_all_static([tr, other_db])
     assert any("unique collection names" in e for e in cross)
+
+
+def test_holdout_terms():
+    from ratchet.env.validate import holdout_terms
+
+    terms = holdout_terms(load_workloads(WORKLOAD_DIR))
+    assert {"grades", "orders", "sales", "inspections"} <= set(terms["collections"])
+    assert "movies" not in terms["collections"] and "training_w01" in terms["workload_ids"]
+    assert "student_id" in terms["fields"] and "year" not in terms["fields"]

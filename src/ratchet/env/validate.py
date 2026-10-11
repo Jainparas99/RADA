@@ -253,3 +253,75 @@ def check_live(w: Workload, source: Database, report: Report | None = None) -> R
             ok = False
         r.live[q.id] = {"n": n, "hash": h1, "ok": ok}
     return r
+
+
+# --------------------------------------------------------------------------- leakage vocabulary
+
+
+def _query_fields(q: QuerySpec) -> set[str]:
+    out: set[str] = set()
+
+    def walk(x: Any) -> None:
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if isinstance(k, str) and not k.startswith("$"):
+                    out.update(p for p in k.split(".") if p)
+                walk(v)
+        elif isinstance(x, list | tuple):
+            for v in x:
+                walk(v)
+        elif isinstance(x, str) and x.startswith("$") and not x.startswith("$$"):
+            out.update(p for p in x[1:].split(".") if p)
+
+    walk([q.filter, q.projection, [k for k, _ in q.sort or []], q.pipeline])
+    return out
+
+
+# Generic words a lesson may legitimately use ("put $limit early", "unwind items"):
+# never treated as holdout-specific even if only holdout queries use them as field names.
+GENERIC_TERMS = {
+    "limit",
+    "items",
+    "item",
+    "month",
+    "best",
+    "n",
+    "qty",
+    "quantity",
+    "age",
+    "customer",
+    "region",
+    "channel",
+    "priority",
+    "products",
+    "result",
+    "date",
+    "name",
+    "type",
+    "score",
+    "scores",
+    "status",
+    "total",
+    "city",
+    "state",
+    "address",
+    "zip",
+    "email",
+    "id",
+}
+
+
+def holdout_terms(workloads: list[Workload]) -> dict[str, list[str]]:
+    """Names the proposer and lesson memory must never mention (for Track A's
+    HOLDOUT_LEAKAGE check): holdout/canary collection names and workload ids, and
+    field names that appear in holdout/canary queries but in no train query."""
+    train = [w for w in workloads if w.split == "train"]
+    hidden = [w for w in workloads if w.split != "train"]
+    train_fields = {f for w in train for q in w.queries for f in _query_fields(q)}
+    train_colls = {c for w in train for c in w.collections}
+    hidden_fields = {f for w in hidden for q in w.queries for f in _query_fields(q)}
+    return {
+        "collections": sorted({c for w in hidden for c in w.collections} - train_colls),
+        "workload_ids": sorted(w.id for w in hidden),
+        "fields": sorted(hidden_fields - train_fields - GENERIC_TERMS - {"_id"}),
+    }
