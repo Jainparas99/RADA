@@ -11,7 +11,7 @@ from bson.json_util import CANONICAL_JSON_OPTIONS
 from pymongo.database import Database
 
 from ratchet.contracts import ExplainSummary, Measurement, QuerySpec, Workload
-from ratchet.env.explain import run_explain, summarize
+from ratchet.env.explain import run_explain, summarize, to_bson
 from ratchet.env.scratch import ScratchEnv, data_checksum
 
 # A rewritten query that returns more than this is cut off; the marker in the hash makes
@@ -49,13 +49,13 @@ def result_hash(docs: Iterable[Any]) -> str:
 def run_query(db: Database, q: QuerySpec) -> Iterable[dict]:
     coll = db[q.collection]
     if q.kind == "find":
-        cur = coll.find(q.filter or {}, q.projection)
+        cur = coll.find(to_bson(q.filter or {}), q.projection)
         if q.sort:
             cur = cur.sort([(k, v) for k, v in q.sort])
         if q.limit is not None:
             cur = cur.limit(q.limit)
         return cur
-    return coll.aggregate(q.pipeline or [])
+    return coll.aggregate(to_bson(q.pipeline or []))
 
 
 def explain_query(env: ScratchEnv, q: QuerySpec) -> ExplainSummary:

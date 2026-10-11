@@ -18,6 +18,7 @@ from ratchet.config import load_yaml
 from ratchet.contracts import GateDecision, PatchOp, TuneResult
 from ratchet.gate.leakage import LeakTerms
 from ratchet.harness.models import HarnessDoc
+from ratchet.jsonsafe import jsonable
 
 MAX_FAILURES = 8
 MAX_GATE_DECISIONS = 5
@@ -84,7 +85,7 @@ def select_failures(results: list[TuneResult], limit: int = MAX_FAILURES) -> lis
 
 
 def _failure_case(r: TuneResult) -> FailureCase:
-    trace = json.dumps(r.trace, default=str)
+    trace = json.dumps(jsonable(r.trace), default=str)
     if len(trace) > MAX_TRACE_CHARS:
         trace = trace[:MAX_TRACE_CHARS] + f"... [truncated {len(trace) - MAX_TRACE_CHARS} chars]"
     return FailureCase(
@@ -95,7 +96,7 @@ def _failure_case(r: TuneResult) -> FailureCase:
         violations=r.score.violations,
         detectors=sorted({f.detector for f in r.findings}),
         self_diagnostics=r.self_diagnostics,
-        plan=r.plan.model_dump(mode="json", exclude_none=True),
+        plan=jsonable(r.plan, exclude_none=True),
         tokens=r.tokens,
         rounds=r.rounds,
         trace=trace,

@@ -10,6 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from ratchet.config import load_yaml
 from ratchet.contracts import QuerySpec, Workload
 
 # Common look-alikes for ASCII letters (Cyrillic / Greek), applied after NFKC + casefold.
@@ -88,10 +89,19 @@ class LeakTerms(BaseModel):
     def from_workloads(
         cls,
         workloads: list[Workload],
-        min_term_chars: int = 3,
-        squash_min_chars: int = 6,
+        min_term_chars: int | None = None,
+        squash_min_chars: int | None = None,
         ignore_terms: list[str] | None = None,
     ) -> LeakTerms:
+        """Anything left as None comes from `config/gate.yaml` (static.leakage), so every
+        caller (evolve, attack, tests) applies the same matching rules."""
+        cfg = load_yaml("gate.yaml").get("static", {}).get("leakage", {})
+        if min_term_chars is None:
+            min_term_chars = cfg.get("min_term_chars", 3)
+        if squash_min_chars is None:
+            squash_min_chars = cfg.get("squash_min_chars", 6)
+        if ignore_terms is None:
+            ignore_terms = cfg.get("ignore_terms", [])
         seen: set[str] = set()
         hidden: set[str] = set()
         for w in workloads:

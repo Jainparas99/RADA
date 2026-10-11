@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from bson import json_util
 from pymongo.database import Database
 
 from ratchet.contracts import ExplainSummary, QuerySpec
@@ -73,10 +74,17 @@ _FULL_BOUNDS = {"[MinKey, MaxKey]", "[MaxKey, MinKey]"}
 # --------------------------------------------------------------------------- running
 
 
+def to_bson(obj: Any) -> Any:
+    """Query values as BSON types. Workloads and planner output are plain JSON, where an
+    ObjectId or a date is written in Extended JSON (``{"$oid": ...}``, ``{"$date": ...}``);
+    the server needs the real types. Already-converted values pass through unchanged."""
+    return json_util.loads(json_util.dumps(obj))
+
+
 def explain_command(q: QuerySpec) -> dict[str, Any]:
     """The inner command for ``explain`` (without the verbosity wrapper)."""
     if q.kind == "find":
-        cmd: dict[str, Any] = {"find": q.collection, "filter": q.filter or {}}
+        cmd: dict[str, Any] = {"find": q.collection, "filter": to_bson(q.filter or {})}
         if q.projection is not None:
             cmd["projection"] = q.projection
         if q.sort:
@@ -86,7 +94,7 @@ def explain_command(q: QuerySpec) -> dict[str, Any]:
         return cmd
     if q.pipeline is None:
         raise ExplainParseError(f"aggregate query {q.id} has no pipeline")
-    return {"aggregate": q.collection, "pipeline": q.pipeline, "cursor": {}}
+    return {"aggregate": q.collection, "pipeline": to_bson(q.pipeline), "cursor": {}}
 
 
 def run_explain(db: Database, q: QuerySpec) -> dict[str, Any]:
