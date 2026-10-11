@@ -1,0 +1,286 @@
+{
+ "query": {
+  "id": "find_sort",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "genres": "Drama",
+   "year": {
+    "$gt": 2000
+   }
+  },
+  "projection": {
+   "title": 1,
+   "imdb.rating": 1
+  },
+  "sort": [
+   [
+    "imdb.rating",
+    -1
+   ],
+   [
+    "_id",
+    1
+   ]
+  ],
+  "limit": 10,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_fixtures.movies",
+   "parsedQuery": {
+    "$and": [
+     {
+      "genres": {
+       "$eq": "Drama"
+      }
+     },
+     {
+      "year": {
+       "$gt": 2000
+      }
+     }
+    ]
+   },
+   "indexFilterSet": false,
+   "queryHash": "ADC320AB",
+   "planCacheShapeHash": "ADC320AB",
+   "planCacheKey": "A9388A79",
+   "optimizationTimeMillis": 7,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "PROJECTION_DEFAULT",
+    "transformBy": {
+     "title": 1,
+     "imdb.rating": 1
+    },
+    "inputStage": {
+     "stage": "SORT",
+     "sortPattern": {
+      "imdb.rating": -1,
+      "_id": 1
+     },
+     "memLimit": 104857600,
+     "limitAmount": 10,
+     "type": "simple",
+     "inputStage": {
+      "stage": "FETCH",
+      "filter": {
+       "genres": {
+        "$eq": "Drama"
+       }
+      },
+      "inputStage": {
+       "stage": "IXSCAN",
+       "keyPattern": {
+        "year": 1
+       },
+       "indexName": "year_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "year": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": 2,
+       "direction": "forward",
+       "indexBounds": {
+        "year": [
+         "(2000, inf]"
+        ]
+       }
+      }
+     }
+    }
+   },
+   "rejectedPlans": [
+    {
+     "isCached": false,
+     "stage": "PROJECTION_DEFAULT",
+     "transformBy": {
+      "title": 1,
+      "imdb.rating": 1
+     },
+     "inputStage": {
+      "stage": "SORT",
+      "sortPattern": {
+       "imdb.rating": -1,
+       "_id": 1
+      },
+      "memLimit": 104857600,
+      "limitAmount": 10,
+      "type": "simple",
+      "inputStage": {
+       "stage": "FETCH",
+       "filter": {
+        "genres": {
+         "$eq": "Drama"
+        }
+       },
+       "inputStage": {
+        "stage": "IXSCAN",
+        "keyPattern": {
+         "year": 1,
+         "title": 1
+        },
+        "indexName": "year_1_title_1",
+        "isMultiKey": false,
+        "multiKeyPaths": {
+         "year": [],
+         "title": []
+        },
+        "isUnique": false,
+        "isSparse": false,
+        "isPartial": false,
+        "indexVersion": 2,
+        "direction": "forward",
+        "indexBounds": {
+         "year": [
+          "(2000, inf]"
+         ],
+         "title": [
+          "[MinKey, MaxKey]"
+         ]
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 10,
+   "executionTimeMillis": 7,
+   "totalKeysExamined": 2134,
+   "totalDocsExamined": 2134,
+   "executionStages": {
+    "isCached": false,
+    "stage": "PROJECTION_DEFAULT",
+    "nReturned": 10,
+    "executionTimeMillisEstimate": 0,
+    "works": 2146,
+    "advanced": 10,
+    "needTime": 2135,
+    "needYield": 0,
+    "saveState": 0,
+    "restoreState": 0,
+    "isEOF": 1,
+    "transformBy": {
+     "title": 1,
+     "imdb.rating": 1
+    },
+    "inputStage": {
+     "stage": "SORT",
+     "nReturned": 10,
+     "executionTimeMillisEstimate": 0,
+     "works": 2146,
+     "advanced": 10,
+     "needTime": 2135,
+     "needYield": 0,
+     "saveState": 0,
+     "restoreState": 0,
+     "isEOF": 1,
+     "sortPattern": {
+      "imdb.rating": -1,
+      "_id": 1
+     },
+     "memLimit": 104857600,
+     "limitAmount": 10,
+     "type": "simple",
+     "totalDataSizeSorted": 2721,
+     "usedDisk": false,
+     "spills": 0,
+     "spilledRecords": 0,
+     "spilledBytes": 0,
+     "spilledDataStorageSize": 0,
+     "inputStage": {
+      "stage": "FETCH",
+      "filter": {
+       "genres": {
+        "$eq": "Drama"
+       }
+      },
+      "nReturned": 621,
+      "executionTimeMillisEstimate": 0,
+      "works": 2135,
+      "advanced": 621,
+      "needTime": 1513,
+      "needYield": 0,
+      "saveState": 0,
+      "restoreState": 0,
+      "isEOF": 1,
+      "docsExamined": 2134,
+      "alreadyHasObj": 0,
+      "inputStage": {
+       "stage": "IXSCAN",
+       "nReturned": 2134,
+       "executionTimeMillisEstimate": 0,
+       "works": 2135,
+       "advanced": 2134,
+       "needTime": 0,
+       "needYield": 0,
+       "saveState": 0,
+       "restoreState": 0,
+       "isEOF": 1,
+       "keyPattern": {
+        "year": 1
+       },
+       "indexName": "year_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "year": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": 2,
+       "direction": "forward",
+       "indexBounds": {
+        "year": [
+         "(2000, inf]"
+        ]
+       },
+       "keysExamined": 2134,
+       "seeks": 1,
+       "dupsTested": 0,
+       "dupsDropped": 0
+      }
+     }
+    }
+   }
+  },
+  "queryShapeHash": "E7DED19BFD7E23204425CF6AF6D01695AAC21802EF682D3B18C4964923B97671",
+  "command": {
+   "find": "movies",
+   "filter": {
+    "genres": "Drama",
+    "year": {
+     "$gt": 2000
+    }
+   },
+   "projection": {
+    "title": 1,
+    "imdb.rating": 1
+   },
+   "sort": {
+    "imdb.rating": -1,
+    "_id": 1
+   },
+   "limit": 10,
+   "$db": "ratchet_scratch_fixtures"
+  },
+  "ok": 1.0,
+  "serverInfo": {
+   "version": "8.2.1"
+  }
+ }
+}

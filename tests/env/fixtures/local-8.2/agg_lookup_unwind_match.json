@@ -1,0 +1,200 @@
+{
+ "query": {
+  "id": "agg_lookup_unwind_match",
+  "kind": "aggregate",
+  "collection": "comments",
+  "filter": {},
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": [
+   {
+    "$lookup": {
+     "from": "movies",
+     "localField": "movie_id",
+     "foreignField": "_id",
+     "as": "m"
+    }
+   },
+   {
+    "$unwind": "$m"
+   },
+   {
+    "$match": {
+     "m.year": 2012
+    }
+   },
+   {
+    "$count": "n"
+   }
+  ],
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "ratchet_scratch_fixtures.comments",
+      "parsedQuery": {},
+      "indexFilterSet": false,
+      "queryHash": "73C8F2E9",
+      "planCacheShapeHash": "73C8F2E9",
+      "planCacheKey": "8EBE6E77",
+      "optimizationTimeMillis": 0,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+       "isCached": false,
+       "stage": "PROJECTION_SIMPLE",
+       "transformBy": {
+        "movie_id": 1,
+        "_id": 0
+       },
+       "inputStage": {
+        "stage": "COLLSCAN",
+        "direction": "forward"
+       }
+      },
+      "rejectedPlans": []
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 20000,
+      "executionTimeMillis": 297,
+      "totalKeysExamined": 0,
+      "totalDocsExamined": 20000,
+      "executionStages": {
+       "isCached": false,
+       "stage": "PROJECTION_SIMPLE",
+       "nReturned": 20000,
+       "executionTimeMillisEstimate": 0,
+       "works": 20001,
+       "advanced": 20000,
+       "needTime": 0,
+       "needYield": 0,
+       "saveState": 15,
+       "restoreState": 14,
+       "isEOF": 1,
+       "transformBy": {
+        "movie_id": 1,
+        "_id": 0
+       },
+       "inputStage": {
+        "stage": "COLLSCAN",
+        "nReturned": 20000,
+        "executionTimeMillisEstimate": 0,
+        "works": 20001,
+        "advanced": 20000,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 15,
+        "restoreState": 14,
+        "isEOF": 1,
+        "direction": "forward",
+        "docsExamined": 20000
+       }
+      }
+     }
+    },
+    "nReturned": 20000,
+    "executionTimeMillisEstimate": 0
+   },
+   {
+    "$lookup": {
+     "from": "movies",
+     "as": "m",
+     "localField": "movie_id",
+     "foreignField": "_id",
+     "let": {},
+     "pipeline": [
+      {
+       "$match": {
+        "year": {
+         "$eq": 2012
+        }
+       }
+      }
+     ],
+     "unwinding": {
+      "preserveNullAndEmptyArrays": false
+     }
+    },
+    "totalDocsExamined": 20001,
+    "totalKeysExamined": 20001,
+    "collectionScans": 0,
+    "indexesUsed": [
+     "_id_"
+    ],
+    "nReturned": 280,
+    "executionTimeMillisEstimate": 297
+   },
+   {
+    "$group": {
+     "_id": {
+      "$const": null
+     },
+     "n": {
+      "$sum": {
+       "$const": 1
+      }
+     },
+     "$willBeMerged": false
+    },
+    "maxAccumulatorMemoryUsageBytes": {
+     "n": 184
+    },
+    "totalOutputDataSizeBytes": 237,
+    "usedDisk": false,
+    "spills": 0,
+    "spilledDataStorageSize": 0,
+    "spilledBytes": 0,
+    "spilledRecords": 0,
+    "nReturned": 1,
+    "executionTimeMillisEstimate": 297
+   },
+   {
+    "$project": {
+     "n": true,
+     "_id": false
+    },
+    "nReturned": 1,
+    "executionTimeMillisEstimate": 297
+   }
+  ],
+  "queryShapeHash": "B7115A835D61BFC5C9033664D230324482766BABC822157D2E3C85402107D33E",
+  "command": {
+   "aggregate": "comments",
+   "pipeline": [
+    {
+     "$lookup": {
+      "from": "movies",
+      "localField": "movie_id",
+      "foreignField": "_id",
+      "as": "m"
+     }
+    },
+    {
+     "$unwind": "$m"
+    },
+    {
+     "$match": {
+      "m.year": 2012
+     }
+    },
+    {
+     "$count": "n"
+    }
+   ],
+   "cursor": {},
+   "$db": "ratchet_scratch_fixtures"
+  },
+  "ok": 1.0,
+  "serverInfo": {
+   "version": "8.2.1"
+  }
+ }
+}

@@ -1,0 +1,356 @@
+{
+ "query": {
+  "id": "agg_lookup_pipeline_form",
+  "kind": "aggregate",
+  "collection": "movies",
+  "filter": {},
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": [
+   {
+    "$match": {
+     "year": 1999
+    }
+   },
+   {
+    "$lookup": {
+     "from": "comments",
+     "let": {
+      "id": "$_id"
+     },
+     "pipeline": [
+      {
+       "$match": {
+        "$expr": {
+         "$eq": [
+          "$movie_id",
+          "$$id"
+         ]
+        }
+       }
+      }
+     ],
+     "as": "c"
+    }
+   },
+   {
+    "$sort": {
+     "_id": 1
+    }
+   },
+   {
+    "$limit": 3
+   }
+  ],
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "ratchet_scratch_b.movies",
+      "parsedQuery": {
+       "year": {
+        "$eq": 1999
+       }
+      },
+      "indexFilterSet": false,
+      "queryHash": "CEA50C1A",
+      "planCacheShapeHash": "CEA50C1A",
+      "planCacheKey": "5D756E09",
+      "optimizationTimeMillis": 3,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+       "isCached": false,
+       "stage": "SORT",
+       "sortPattern": {
+        "_id": 1
+       },
+       "memLimit": 104857600,
+       "limitAmount": 3,
+       "type": "simple",
+       "inputStage": {
+        "stage": "FETCH",
+        "inputStage": {
+         "stage": "IXSCAN",
+         "keyPattern": {
+          "year": 1
+         },
+         "indexName": "year_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "year": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": 2,
+         "direction": "forward",
+         "indexBounds": {
+          "year": [
+           "[1999, 1999]"
+          ]
+         }
+        }
+       }
+      },
+      "rejectedPlans": [
+       {
+        "isCached": false,
+        "stage": "SORT",
+        "sortPattern": {
+         "_id": 1
+        },
+        "memLimit": 104857600,
+        "limitAmount": 3,
+        "type": "simple",
+        "inputStage": {
+         "stage": "FETCH",
+         "inputStage": {
+          "stage": "IXSCAN",
+          "keyPattern": {
+           "year": 1,
+           "title": 1
+          },
+          "indexName": "year_1_title_1",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+           "year": [],
+           "title": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+           "year": [
+            "[1999, 1999]"
+           ],
+           "title": [
+            "[MinKey, MaxKey]"
+           ]
+          }
+         }
+        }
+       },
+       {
+        "isCached": false,
+        "stage": "LIMIT",
+        "limitAmount": 3,
+        "inputStage": {
+         "stage": "FETCH",
+         "filter": {
+          "year": {
+           "$eq": 1999
+          }
+         },
+         "inputStage": {
+          "stage": "IXSCAN",
+          "keyPattern": {
+           "_id": 1
+          },
+          "indexName": "_id_",
+          "isMultiKey": false,
+          "isUnique": true,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+           "_id": [
+            "[MinKey, MaxKey]"
+           ]
+          }
+         }
+        }
+       }
+      ]
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 3,
+      "executionTimeMillis": 104,
+      "totalKeysExamined": 515,
+      "totalDocsExamined": 515,
+      "executionStages": {
+       "isCached": false,
+       "stage": "SORT",
+       "nReturned": 3,
+       "executionTimeMillisEstimate": 0,
+       "works": 520,
+       "advanced": 3,
+       "needTime": 516,
+       "needYield": 0,
+       "saveState": 1,
+       "restoreState": 1,
+       "isEOF": 1,
+       "sortPattern": {
+        "_id": 1
+       },
+       "memLimit": 104857600,
+       "limitAmount": 3,
+       "type": "simple",
+       "totalDataSizeSorted": 4405,
+       "usedDisk": false,
+       "spills": 0,
+       "spilledDataStorageSize": 0,
+       "inputStage": {
+        "stage": "FETCH",
+        "nReturned": 515,
+        "executionTimeMillisEstimate": 0,
+        "works": 516,
+        "advanced": 515,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 1,
+        "restoreState": 1,
+        "isEOF": 1,
+        "docsExamined": 515,
+        "alreadyHasObj": 0,
+        "inputStage": {
+         "stage": "IXSCAN",
+         "nReturned": 515,
+         "executionTimeMillisEstimate": 0,
+         "works": 516,
+         "advanced": 515,
+         "needTime": 0,
+         "needYield": 0,
+         "saveState": 1,
+         "restoreState": 1,
+         "isEOF": 1,
+         "keyPattern": {
+          "year": 1
+         },
+         "indexName": "year_1",
+         "isMultiKey": false,
+         "multiKeyPaths": {
+          "year": []
+         },
+         "isUnique": false,
+         "isSparse": false,
+         "isPartial": false,
+         "indexVersion": 2,
+         "direction": "forward",
+         "indexBounds": {
+          "year": [
+           "[1999, 1999]"
+          ]
+         },
+         "keysExamined": 515,
+         "seeks": 1,
+         "dupsTested": 0,
+         "dupsDropped": 0
+        }
+       }
+      }
+     }
+    },
+    "nReturned": 3,
+    "executionTimeMillisEstimate": 0
+   },
+   {
+    "$lookup": {
+     "from": "comments",
+     "as": "c",
+     "let": {
+      "id": "$_id"
+     },
+     "pipeline": [
+      {
+       "$match": {
+        "$expr": {
+         "$eq": [
+          "$movie_id",
+          "$$id"
+         ]
+        }
+       }
+      }
+     ]
+    },
+    "totalDocsExamined": 123237,
+    "totalKeysExamined": 0,
+    "collectionScans": 3,
+    "indexesUsed": [],
+    "nReturned": 3,
+    "executionTimeMillisEstimate": 101
+   }
+  ],
+  "queryShapeHash": "1AFB92A2DF2C369FFCA13ECE8D3AF17D9CCEAE5B25B52F0F6394C37A6BAF424B",
+  "command": {
+   "aggregate": "movies",
+   "pipeline": [
+    {
+     "$match": {
+      "year": 1999
+     }
+    },
+    {
+     "$lookup": {
+      "from": "comments",
+      "let": {
+       "id": "$_id"
+      },
+      "pipeline": [
+       {
+        "$match": {
+         "$expr": {
+          "$eq": [
+           "$movie_id",
+           "$$id"
+          ]
+         }
+        }
+       }
+      ],
+      "as": "c"
+     }
+    },
+    {
+     "$sort": {
+      "_id": 1
+     }
+    },
+    {
+     "$limit": 3
+    }
+   ],
+   "cursor": {},
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748452,
+     "i": 1
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "ih5q8hGuKsAPrjhSy8OXpSFsvIA=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748452,
+    "i": 1
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

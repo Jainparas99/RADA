@@ -1,0 +1,191 @@
+{
+ "query": {
+  "id": "find_regex",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "title": {
+    "$regex": "night",
+    "$options": "i"
+   }
+  },
+  "projection": null,
+  "sort": [
+   [
+    "_id",
+    1
+   ]
+  ],
+  "limit": 5,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_b.movies",
+   "parsedQuery": {
+    "title": {
+     "$regex": "night",
+     "$options": "i"
+    }
+   },
+   "indexFilterSet": false,
+   "queryHash": "7A50A4F5",
+   "planCacheShapeHash": "7A50A4F5",
+   "planCacheKey": "563A75AC",
+   "optimizationTimeMillis": 0,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "limitAmount": 5,
+    "inputStage": {
+     "stage": "FETCH",
+     "filter": {
+      "title": {
+       "$regex": "night",
+       "$options": "i"
+      }
+     },
+     "inputStage": {
+      "stage": "IXSCAN",
+      "keyPattern": {
+       "_id": 1
+      },
+      "indexName": "_id_",
+      "isMultiKey": false,
+      "isUnique": true,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": 2,
+      "direction": "forward",
+      "indexBounds": {
+       "_id": [
+        "[MinKey, MaxKey]"
+       ]
+      }
+     }
+    }
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 5,
+   "executionTimeMillis": 1,
+   "totalKeysExamined": 174,
+   "totalDocsExamined": 174,
+   "executionStages": {
+    "isCached": false,
+    "stage": "LIMIT",
+    "nReturned": 5,
+    "executionTimeMillisEstimate": 0,
+    "works": 175,
+    "advanced": 5,
+    "needTime": 169,
+    "needYield": 0,
+    "saveState": 0,
+    "restoreState": 0,
+    "isEOF": 1,
+    "limitAmount": 5,
+    "inputStage": {
+     "stage": "FETCH",
+     "filter": {
+      "title": {
+       "$regex": "night",
+       "$options": "i"
+      }
+     },
+     "nReturned": 5,
+     "executionTimeMillisEstimate": 0,
+     "works": 174,
+     "advanced": 5,
+     "needTime": 169,
+     "needYield": 0,
+     "saveState": 0,
+     "restoreState": 0,
+     "isEOF": 0,
+     "docsExamined": 174,
+     "alreadyHasObj": 0,
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": 174,
+      "executionTimeMillisEstimate": 0,
+      "works": 174,
+      "advanced": 174,
+      "needTime": 0,
+      "needYield": 0,
+      "saveState": 0,
+      "restoreState": 0,
+      "isEOF": 0,
+      "keyPattern": {
+       "_id": 1
+      },
+      "indexName": "_id_",
+      "isMultiKey": false,
+      "isUnique": true,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": 2,
+      "direction": "forward",
+      "indexBounds": {
+       "_id": [
+        "[MinKey, MaxKey]"
+       ]
+      },
+      "keysExamined": 174,
+      "seeks": 1,
+      "dupsTested": 0,
+      "dupsDropped": 0
+     }
+    }
+   }
+  },
+  "queryShapeHash": "DA1DCC785C502225AC42257BB3C9FE9E8D68744E175E36E63234F585D80215B4",
+  "command": {
+   "find": "movies",
+   "filter": {
+    "title": {
+     "$regex": "night",
+     "$options": "i"
+    }
+   },
+   "sort": {
+    "_id": 1
+   },
+   "limit": 5,
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748442,
+     "i": 17
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "NYoKtj4xyZb8mV3AOUh+W7RsEWc=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748442,
+    "i": 17
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

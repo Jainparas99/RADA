@@ -1,0 +1,218 @@
+{
+ "query": {
+  "id": "agg_unwind_match_group_sort",
+  "kind": "aggregate",
+  "collection": "movies",
+  "filter": {},
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": [
+   {
+    "$unwind": "$genres"
+   },
+   {
+    "$match": {
+     "genres": "Drama"
+    }
+   },
+   {
+    "$group": {
+     "_id": "$year",
+     "n": {
+      "$sum": 1
+     }
+    }
+   },
+   {
+    "$sort": {
+     "_id": 1
+    }
+   }
+  ],
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "ratchet_scratch_b.movies",
+      "parsedQuery": {},
+      "indexFilterSet": false,
+      "queryHash": "A675732E",
+      "planCacheShapeHash": "A675732E",
+      "planCacheKey": "031A712E",
+      "optimizationTimeMillis": 0,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+       "isCached": false,
+       "stage": "PROJECTION_SIMPLE",
+       "transformBy": {
+        "genres": 1,
+        "year": 1,
+        "_id": 0
+       },
+       "inputStage": {
+        "stage": "COLLSCAN",
+        "direction": "forward"
+       }
+      },
+      "rejectedPlans": []
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 21349,
+      "executionTimeMillis": 62,
+      "totalKeysExamined": 0,
+      "totalDocsExamined": 21349,
+      "executionStages": {
+       "isCached": false,
+       "stage": "PROJECTION_SIMPLE",
+       "nReturned": 21349,
+       "executionTimeMillisEstimate": 9,
+       "works": 21350,
+       "advanced": 21349,
+       "needTime": 0,
+       "needYield": 0,
+       "saveState": 12,
+       "restoreState": 12,
+       "isEOF": 1,
+       "transformBy": {
+        "genres": 1,
+        "year": 1,
+        "_id": 0
+       },
+       "inputStage": {
+        "stage": "COLLSCAN",
+        "nReturned": 21349,
+        "executionTimeMillisEstimate": 0,
+        "works": 21350,
+        "advanced": 21349,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 12,
+        "restoreState": 12,
+        "isEOF": 1,
+        "direction": "forward",
+        "docsExamined": 21349
+       }
+      }
+     }
+    },
+    "nReturned": 21349,
+    "executionTimeMillisEstimate": 23
+   },
+   {
+    "$unwind": {
+     "path": "$genres"
+    },
+    "nReturned": 45278,
+    "executionTimeMillisEstimate": 44
+   },
+   {
+    "$match": {
+     "genres": {
+      "$eq": "Drama"
+     }
+    },
+    "nReturned": 12385,
+    "executionTimeMillisEstimate": 61
+   },
+   {
+    "$group": {
+     "_id": "$year",
+     "n": {
+      "$sum": {
+       "$const": 1
+      }
+     }
+    },
+    "maxAccumulatorMemoryUsageBytes": {
+     "n": 13952
+    },
+    "totalOutputDataSizeBytes": 26705,
+    "usedDisk": false,
+    "spills": 0,
+    "spilledDataStorageSize": 0,
+    "numBytesSpilledEstimate": 0,
+    "spilledRecords": 0,
+    "nReturned": 109,
+    "executionTimeMillisEstimate": 61
+   },
+   {
+    "$sort": {
+     "sortKey": {
+      "_id": 1
+     }
+    },
+    "totalDataSizeSortedBytesEstimate": 27577,
+    "usedDisk": false,
+    "spills": 0,
+    "spilledDataStorageSize": 0,
+    "nReturned": 109,
+    "executionTimeMillisEstimate": 61
+   }
+  ],
+  "queryShapeHash": "406436986B1D4F5BE888632F499A7D65A81DAB838965D853E40A1E7DEA43ED3C",
+  "command": {
+   "aggregate": "movies",
+   "pipeline": [
+    {
+     "$unwind": "$genres"
+    },
+    {
+     "$match": {
+      "genres": "Drama"
+     }
+    },
+    {
+     "$group": {
+      "_id": "$year",
+      "n": {
+       "$sum": 1
+      }
+     }
+    },
+    {
+     "$sort": {
+      "_id": 1
+     }
+    }
+   ],
+   "cursor": {},
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748457,
+     "i": 12
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "eT2SOZ9xp01TqEACm5q2HLdCALg=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748457,
+    "i": 12
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

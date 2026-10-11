@@ -1,0 +1,306 @@
+{
+ "query": {
+  "id": "agg_pushdown",
+  "kind": "aggregate",
+  "collection": "movies",
+  "filter": {},
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": [
+   {
+    "$match": {
+     "year": 1999
+    }
+   },
+   {
+    "$sort": {
+     "_id": 1
+    }
+   },
+   {
+    "$limit": 5
+   },
+   {
+    "$project": {
+     "title": 1
+    }
+   }
+  ],
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_fixtures.movies",
+   "parsedQuery": {
+    "year": {
+     "$eq": 1999
+    }
+   },
+   "indexFilterSet": false,
+   "queryHash": "A84BEBD7",
+   "planCacheShapeHash": "A84BEBD7",
+   "planCacheKey": "526D657C",
+   "optimizationTimeMillis": 0,
+   "optimizedPipeline": true,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "PROJECTION_SIMPLE",
+    "transformBy": {
+     "_id": true,
+     "title": true
+    },
+    "inputStage": {
+     "stage": "SORT",
+     "sortPattern": {
+      "_id": 1
+     },
+     "memLimit": 104857600,
+     "limitAmount": 5,
+     "type": "simple",
+     "inputStage": {
+      "stage": "FETCH",
+      "inputStage": {
+       "stage": "IXSCAN",
+       "keyPattern": {
+        "year": 1
+       },
+       "indexName": "year_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "year": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": 2,
+       "direction": "forward",
+       "indexBounds": {
+        "year": [
+         "[1999, 1999]"
+        ]
+       }
+      }
+     }
+    }
+   },
+   "rejectedPlans": [
+    {
+     "isCached": false,
+     "stage": "PROJECTION_SIMPLE",
+     "transformBy": {
+      "_id": true,
+      "title": true
+     },
+     "inputStage": {
+      "stage": "SORT",
+      "sortPattern": {
+       "_id": 1
+      },
+      "memLimit": 104857600,
+      "limitAmount": 5,
+      "type": "simple",
+      "inputStage": {
+       "stage": "FETCH",
+       "inputStage": {
+        "stage": "IXSCAN",
+        "keyPattern": {
+         "year": 1,
+         "title": 1
+        },
+        "indexName": "year_1_title_1",
+        "isMultiKey": false,
+        "multiKeyPaths": {
+         "year": [],
+         "title": []
+        },
+        "isUnique": false,
+        "isSparse": false,
+        "isPartial": false,
+        "indexVersion": 2,
+        "direction": "forward",
+        "indexBounds": {
+         "year": [
+          "[1999, 1999]"
+         ],
+         "title": [
+          "[MinKey, MaxKey]"
+         ]
+        }
+       }
+      }
+     }
+    },
+    {
+     "isCached": false,
+     "stage": "LIMIT",
+     "limitAmount": 5,
+     "inputStage": {
+      "stage": "PROJECTION_SIMPLE",
+      "transformBy": {
+       "_id": true,
+       "title": true
+      },
+      "inputStage": {
+       "stage": "FETCH",
+       "filter": {
+        "year": {
+         "$eq": 1999
+        }
+       },
+       "inputStage": {
+        "stage": "IXSCAN",
+        "keyPattern": {
+         "_id": 1
+        },
+        "indexName": "_id_",
+        "isMultiKey": false,
+        "isUnique": true,
+        "isSparse": false,
+        "isPartial": false,
+        "indexVersion": 2,
+        "direction": "forward",
+        "indexBounds": {
+         "_id": [
+          "[MinKey, MaxKey]"
+         ]
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 5,
+   "executionTimeMillis": 0,
+   "totalKeysExamined": 109,
+   "totalDocsExamined": 109,
+   "executionStages": {
+    "isCached": false,
+    "stage": "PROJECTION_SIMPLE",
+    "nReturned": 5,
+    "executionTimeMillisEstimate": 0,
+    "works": 116,
+    "advanced": 5,
+    "needTime": 110,
+    "needYield": 0,
+    "saveState": 0,
+    "restoreState": 0,
+    "isEOF": 1,
+    "transformBy": {
+     "_id": true,
+     "title": true
+    },
+    "inputStage": {
+     "stage": "SORT",
+     "nReturned": 5,
+     "executionTimeMillisEstimate": 0,
+     "works": 116,
+     "advanced": 5,
+     "needTime": 110,
+     "needYield": 0,
+     "saveState": 0,
+     "restoreState": 0,
+     "isEOF": 1,
+     "sortPattern": {
+      "_id": 1
+     },
+     "memLimit": 104857600,
+     "limitAmount": 5,
+     "type": "simple",
+     "totalDataSizeSorted": 922,
+     "usedDisk": false,
+     "spills": 0,
+     "spilledRecords": 0,
+     "spilledBytes": 0,
+     "spilledDataStorageSize": 0,
+     "inputStage": {
+      "stage": "FETCH",
+      "nReturned": 109,
+      "executionTimeMillisEstimate": 0,
+      "works": 110,
+      "advanced": 109,
+      "needTime": 0,
+      "needYield": 0,
+      "saveState": 0,
+      "restoreState": 0,
+      "isEOF": 1,
+      "docsExamined": 109,
+      "alreadyHasObj": 0,
+      "inputStage": {
+       "stage": "IXSCAN",
+       "nReturned": 109,
+       "executionTimeMillisEstimate": 0,
+       "works": 110,
+       "advanced": 109,
+       "needTime": 0,
+       "needYield": 0,
+       "saveState": 0,
+       "restoreState": 0,
+       "isEOF": 1,
+       "keyPattern": {
+        "year": 1
+       },
+       "indexName": "year_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "year": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": 2,
+       "direction": "forward",
+       "indexBounds": {
+        "year": [
+         "[1999, 1999]"
+        ]
+       },
+       "keysExamined": 109,
+       "seeks": 1,
+       "dupsTested": 0,
+       "dupsDropped": 0
+      }
+     }
+    }
+   }
+  },
+  "queryShapeHash": "9C8090A9FB04515597E0015F3A16A0B3A4BC23B45BEAD3FD822F678A486840E9",
+  "command": {
+   "aggregate": "movies",
+   "pipeline": [
+    {
+     "$match": {
+      "year": 1999
+     }
+    },
+    {
+     "$sort": {
+      "_id": 1
+     }
+    },
+    {
+     "$limit": 5
+    },
+    {
+     "$project": {
+      "title": 1
+     }
+    }
+   ],
+   "cursor": {},
+   "$db": "ratchet_scratch_fixtures"
+  },
+  "ok": 1.0,
+  "serverInfo": {
+   "version": "8.2.1"
+  }
+ }
+}
