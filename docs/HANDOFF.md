@@ -50,3 +50,22 @@ Append one entry per sync: time, track, what landed on main, what's next, anythi
   - *Next (C):* attack outer part, transfer, chart, watch, replay, README + DEMO.md.
   - *Broken / not verified:* still no live run (no `.env` in this checkout). OpenAI/Google adapters
     untested without keys.
+- **Phase 3 / freeze-ready — Track C (branch `C`)**
+  - *Landed:* `ratchet attack` now has both levels: 4 inner cheats (agent path + scorer-only path)
+    and 5 outer cheats through Track A's `check_static` / `check_dynamic` (loaded lazily; shown as
+    `n/a` until the gate is on main). Verified locally against `origin/person_A` merged into a
+    throwaway worktree: **all 12 cheats rejected** with the expected codes, all Track C tests pass.
+    `ratchet transfer` (gen 0 vs best on holdout per callable planner model → `transfer_runs` +
+    `docs/transfer.md`), `ratchet chart` (`docs/chart.png` from `generations`, fallback
+    `harness_versions`), `ratchet watch` (change streams, polling fallback), `ratchet replay
+    [--gen N | --version V]` (cache-only LLM client; misses reported), `RATCHET_LLM_CACHE_ONLY=1`
+    for any command. README (results table left as TODO for the final run) and `docs/DEMO.md`
+    (3-min script, pre-flight, fallbacks, 60-s video script).
+  - *Asks:* **A** — `tests/core/test_evolve.py::test_proposer_never_sees_holdout_canary_or_gate_source`
+    fails on Windows: a `read_text()` without `encoding="utf-8"` hits cp1252 on `gate/leakage.py`.
+    Merging `person_A` into `C` conflicts only in `docs/HANDOFF.md` (both append; keep both).
+    **B** — please drop `docs/README_measurement.md`; I'll merge it into the README's "How
+    measurement works" section.
+  - *Next (C):* live `ratchet tune` on the sandbox once `.env` exists; real numbers into README
+    after A's full run; README references need verifying; record video.
+  - *Broken / not verified:* nothing live yet (no `.env` here). OpenAI/Google adapters untested.
