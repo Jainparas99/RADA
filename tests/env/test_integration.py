@@ -375,3 +375,25 @@ def test_rewrite_freq_cannot_discount_cost(env, live_workload):
     )
     after = measure(env, live_workload, rep.effective_queries)
     assert after.workload_cost == before.workload_cost
+
+
+def test_env_is_stateful_like_fakeenv(env, live_workload):
+    """apply_plan records rewrites on the env; measure(env, w) runs them; reset forgets them."""
+    new = {**Q1, "sort": [["rating", -1], ["_id", -1]]}
+    before = measure(env, live_workload)
+    apply_plan(
+        env,
+        live_workload,
+        {"actions": [{"type": "rewrite_query", "query_id": "q1", "new_query": new}]},
+    )
+    after = measure(env, live_workload)  # no queries= argument
+    assert after.result_hashes["q1"] != before.result_hashes["q1"]
+    reset_indexes(env, live_workload)
+    assert measure(env, live_workload).result_hashes == before.result_hashes
+
+
+def test_apply_report_has_fakeenv_fields():
+    from ratchet.env.apply import ApplyReport
+    from tests.fakes import FakeApplyReport
+
+    assert set(FakeApplyReport.model_fields) <= set(ApplyReport.model_fields)

@@ -20,7 +20,7 @@ from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.errors import OperationFailure
 
-from ratchet.contracts import IndexDef, Workload
+from ratchet.contracts import IndexDef, QuerySpec, Workload
 from ratchet.env import conn
 
 META = "_ratchet_meta"
@@ -45,6 +45,13 @@ class ScratchEnv:
     source: Database  # source database, RO client
     checksum_mode: ChecksumMode = "full"
     copied: dict[str, int] = field(default_factory=dict)  # coll -> docs copied this call
+    # Current (possibly rewritten) queries, like FakeScratch.queries. apply_plan updates
+    # it; reset_indexes restores the workload's own queries.
+    queries: dict[str, QuerySpec] = field(default_factory=dict)
+
+    def current_queries(self, workload: Workload) -> list[QuerySpec]:
+        """Workload order, rewritten where a plan rewrote a query."""
+        return [self.queries.get(q.id, q) for q in workload.queries]
 
     @property
     def scratch_db(self) -> str:
@@ -110,7 +117,9 @@ def create_index(db: Database, coll: str, ix: IndexDef) -> str:
 
 
 def reset_indexes(env: ScratchEnv, workload: Workload) -> dict[str, list[str]]:
-    """Make every scratch collection's indexes exactly ``baseline_indexes`` (plus ``_id_``)."""
+    """Make every scratch collection's indexes exactly ``baseline_indexes`` (plus ``_id_``)
+    and forget any query rewrites."""
+    env.queries = {q.id: q for q in workload.queries}
     result: dict[str, list[str]] = {}
     for coll in workload.collections:
         want = list(workload.baseline_indexes.get(coll, []))
@@ -170,15 +179,20 @@ def _choose_checksum_mode(db: Database, coll: str, full_max_mb: float) -> Checks
 # --------------------------------------------------------------------------- prepare
 
 
-def _copy_server_side(src: Database, dst: Database, coll: str) -> int:
-    """One client can read the source and write scratch: copy inside the cluster."""
-    src[coll].aggregate([{"$out": {"db": dst.name, "coll": coll}}])
+def _copy_server_side(src_name: str, dst: Database, coll: str) -> int | None:
+    """Copy inside the cluster with ``$out`` if the RW user can also read the source
+    (e.g. one sandbox user for both roles). None if it can't; then we stream instead."""
+    try:
+        dst.client[src_name][coll].aggregate([{"$out": {"db": dst.name, "coll": coll}}])
+    except OperationFailure:
+        return None
     return dst[coll].count_documents({})
 
 
 def _copy_collection(src: Database, dst: Database, coll: str) -> int:
-    if src.client is dst.client:
-        return _copy_server_side(src, dst, coll)
+    n = _copy_server_side(src.name, dst, coll)
+    if n is not None:
+        return n
     dst[coll].drop()
     batch: list[RawBSONDocument] = []
     n = 0

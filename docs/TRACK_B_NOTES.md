@@ -1,17 +1,6 @@
 # Track B notes for Tracks A and C
 
-Branch `b/env-measurement`. Everything below is on that branch, tested (`uv run pytest -q`: 148 passed) and lint-clean.
-
-## Provisional files (Track A: take yours on rebase)
-
-`pyproject.toml`, `.gitignore`, `src/ratchet/contracts.py` (SPEC §10 verbatim), `src/ratchet/cli.py` (mounts `cli_env.app`'s commands at top level). Track B code imports only `ratchet.contracts`.
-
-When you write the real `cli.py`, mount `cli_env.app` so its commands sit at top level (`ratchet measure`, not `ratchet env measure`):
-
-```python
-for cmd in cli_env.app.registered_commands:
-    app.registered_commands.append(cmd)
-```
+Branch `b/env-measurement`, rebased on Track A's scaffold (`3e521b4`). It's tested (166 passed, including Track A's tests) and lint-clean. Track B touches no Track A file. Clients come from `ratchet.db` / `ratchet.config`.
 
 ## Interfaces (SPEC §10)
 
@@ -21,20 +10,22 @@ from ratchet.scoring import score, SOURCE_HASH, SCORER_VERSION
 from ratchet.env.validate import load_workloads, find_workload, holdout_terms
 ```
 
-One tuning round, the way scoring expects it:
+One tuning round. Same call pattern as `tests/fakes.py` `FakeEnv`, so code written against the fake works unchanged:
 
 ```python
-env = prepare_scratch(workload, ns)              # copies once, resets indexes to baseline
+env = prepare_scratch(workload, ns)              # copies once, resets indexes + rewrites to baseline
 before = measure(env, workload)
 findings = run_detectors(env, workload, before)
 rep = apply_plan(env, workload, plan_json)       # pass the planner's RAW dict if you can (see below)
-after = measure(env, workload, rep.effective_queries)   # ← rewritten queries
+after = measure(env, workload)                   # stateful env: runs the rewritten queries
 result = score(workload, before, after, plan, rep)
 ```
 
+`ApplyReport` has every `FakeApplyReport` field (`applied: list[Action]`, `created`, `dropped`, `violations`, `errors: list[str]`), plus `error_details`, `effective_queries` and `index_sizes_mb`. One difference from the fake: if any action is hard-forbidden, or the plan would blow the budget, **nothing** is applied. The fake applies the valid actions anyway. The score is 0 either way.
+
 - **`ScratchEnv`** (dataclass) and **`ApplyReport`** (pydantic) are defined in `env/`, not in contracts. A: add them to contracts if you want; the fields are stable.
 - **`apply_plan` accepts a raw dict.** Pydantic drops unknown fields, so `{"unique": true}` vanishes if you parse into `TuningPlan` first. C: pass the planner's JSON dict (or set `extra="allow"` on `IndexDef`/`Action`; both paths are tested).
-- **Retry rounds:** call `prepare_scratch(...)` again to reset to baseline, then apply the cumulative plan. Or apply the delta on the current state with `base_queries=previous_rep.effective_queries`.
+- **Retry rounds:** a second `apply_plan` on the same env builds on the first (indexes and rewrites persist, like the fake). `prepare_scratch(...)` or `reset_indexes(env, workload)` starts over from baseline.
 - **Collection-level findings** (`REDUNDANT_INDEX`, `UNUSED_INDEX`) have `query_id="*"`.
 - Explain details beyond `ExplainSummary` (scans, lookups with strategy, optimised pipeline, `sort_docs`) are in `summary.raw["derived"]`. Use them for the planner context.
 
@@ -49,7 +40,7 @@ result = score(workload, before, after, plan, rep)
 - MongoDB **8.0.34**, replica set, user has `atlasAdmin` + `readWriteAnyDatabase` (one user for RW and RO; scratch copies then run server-side with `$out`).
 - `dbHash` works (used for data checksums). `collStats` works. `$collStats` with `storageStats` fails on sample collections; index sizes use `collStats`.
 - Sample data loaded (474 MB). `ratchet_data.orders` = 200k synthetic docs (`scripts/gen_synthetic.py`, seed 7). One namespace's scratch copies ≈ 174 MB on disk.
-- Network: the event Wi-Fi uses more than one public egress IP. Add every one to the Atlas IP Access List (we needed `12.94.170.82` **and** `4.78.254.114`). If only one of the three nodes connects, this is why.
+- Network: the event Wi-Fi uses more than one public egress IP. Add every one to the Atlas IP Access List (we needed two). Compare `curl https://api.ipify.org` with `curl https://api64.ipify.org` to find them. If only one of the three nodes connects, this is why.
 - Paste the Atlas password without the `<` `>` from the `<db_password>` template.
 
 ## Baseline costs (`uv run ratchet measure --all`, ns=b)

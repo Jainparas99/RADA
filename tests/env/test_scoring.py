@@ -144,7 +144,10 @@ def test_index_budget_exceeded_from_actual_state(small_workload):
 def test_apply_report_violations_propagate(small_workload, code):
     b, a = before_after(small_workload)
     rep = ApplyReport(
-        ok=False, violations=[code], errors=[ActionError(action_index=0, code=code, detail="x")]
+        ok=False,
+        violations=[code],
+        errors=[f"{code}: x"],
+        error_details=[ActionError(action_index=0, code=code, detail="x")],
     )
     r = scoring.score(small_workload, b, a, EMPTY, rep, CFG)
     assert r.violations == [code] and r.score == 0.0

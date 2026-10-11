@@ -21,6 +21,14 @@ from pymongo.errors import PyMongoError
 from ratchet.contracts import ExplainSummary, Measurement, QuerySpec, Workload
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "mongo: needs a reachable MongoDB (MONGODB_URI_TEST, default localhost)"
+    )
+
+
 LABELS = sorted(p.name for p in FIXTURES.iterdir() if p.is_dir())
 
 

@@ -86,15 +86,19 @@ class ActionError(BaseModel):
 
 
 class ApplyReport(BaseModel):
+    """Field names match tests/fakes.py FakeApplyReport (applied, created, dropped,
+    violations, errors) plus the extras the scorer and traces need."""
+
     ok: bool
-    violations: list[str] = []  # distinct inner violation codes
-    errors: list[ActionError] = []
+    applied: list[Action] = []
     created: dict[str, list[str]] = {}
     dropped: dict[str, list[str]] = {}
+    violations: list[str] = []  # distinct inner violation codes
+    errors: list[str] = []  # "CODE: detail"
+    error_details: list[ActionError] = []
     rewritten: list[str] = []
-    effective_queries: list[QuerySpec] = []
+    effective_queries: list[QuerySpec] = []  # what measure() runs next (also stored on env)
     index_sizes_mb: dict[str, dict[str, float]] = {}
-    applied: int = 0
 
 
 # --------------------------------------------------------------------------- raw checks
@@ -359,7 +363,10 @@ def apply_plan(
     plan: TuningPlan | dict,
     base_queries: list[QuerySpec] | None = None,
 ) -> ApplyReport:
-    """Validate, then apply index actions to the scratch DB and resolve rewrites.
+    """Validate, then apply index actions to the scratch DB and record rewrites on ``env``.
+
+    Like FakeEnv, the env is stateful: rewrites accumulate in ``env.queries`` and a later
+    ``measure(env, workload)`` runs them. ``prepare_scratch``/``reset_indexes`` start over.
 
     A hard FORBIDDEN_ACTION or projected INDEX_BUDGET_EXCEEDED -> nothing is applied.
     Soft FORBIDDEN_ACTION (rewrite rule broken) -> applied and measured, still a violation.
@@ -367,13 +374,18 @@ def apply_plan(
     """
     if not env.db.name.startswith("ratchet_scratch_"):
         raise RuntimeError(f"refusing to apply a plan outside a scratch DB: {env.db.name}")
-    original = list(base_queries or workload.queries)
+    original = list(base_queries or env.current_queries(workload))
     parsed, errors = validate_plan(workload, plan)
 
     def report(**kw: Any) -> ApplyReport:
-        errs = kw.pop("errors", errors)
-        codes = sorted({e.code for e in errs})
-        return ApplyReport(ok=not errs, violations=codes, errors=errs, **kw)
+        codes = sorted({e.code for e in errors})
+        return ApplyReport(
+            ok=not errors,
+            violations=codes,
+            errors=[f"{e.code}: {e.detail}" for e in errors],
+            error_details=list(errors),
+            **kw,
+        )
 
     if parsed is None or any(e.hard for e in errors):
         return report(effective_queries=original)
@@ -409,7 +421,7 @@ def apply_plan(
 
     created: dict[str, list[str]] = {}
     dropped: dict[str, list[str]] = {}
-    applied = 0
+    applied: list[Action] = []
     for i, a in enumerate(parsed.actions):
         try:
             if a.type == "drop_index":
@@ -422,7 +434,7 @@ def apply_plan(
                 env.db.command(
                     {"explain": explain_command(a.new_query), "verbosity": "queryPlanner"}
                 )
-            applied += 1
+            applied.append(a)
         except PyMongoError as e:
             errors.append(
                 ActionError(action_index=i, code=APPLY_ERROR, detail=f"{type(e).__name__}: {e}")
@@ -431,6 +443,7 @@ def apply_plan(
 
     failed = any(e.code == APPLY_ERROR for e in errors)
     eff = original if failed else effective_queries(workload, parsed, original)
+    env.queries = {q.id: q for q in eff}
     sizes = {c: _index_sizes_mb(env.db, c) for c in created}
     return report(
         created=created,

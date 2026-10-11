@@ -65,15 +65,15 @@ def explain_query(env: ScratchEnv, q: QuerySpec) -> ExplainSummary:
 def measure(
     env: ScratchEnv, workload: Workload, queries: list[QuerySpec] | None = None
 ) -> Measurement:
-    """Measure ``queries`` (default: the workload's own) on the scratch copy.
+    """Measure ``queries`` on the scratch copy. Default: the env's current queries, i.e.
+    the workload's own plus any rewrites ``apply_plan`` recorded (same as FakeEnv).
 
-    ``queries`` is how rewritten queries get measured; ids must be the workload's query
-    ids. ``workload_cost`` always weights by the *workload's* frequencies, never by the
-    frequency carried on a (possibly rewritten) query.
+    Ids must be the workload's query ids. ``workload_cost`` always weights by the
+    *workload's* frequencies, never by the frequency carried on a (possibly rewritten) query.
     """
     from ratchet.scoring import query_cost  # local import: scoring imports env
 
-    qs = queries if queries is not None else workload.queries
+    qs = queries if queries is not None else env.current_queries(workload)
     freqs = {q.id: q.freq for q in workload.queries}
     per_query: dict[str, ExplainSummary] = {}
     hashes: dict[str, str] = {}
