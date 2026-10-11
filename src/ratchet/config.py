@@ -5,7 +5,10 @@ from __future__ import annotations
 import os
 import re
 from functools import lru_cache
+from pathlib import Path
+from typing import Any
 
+import yaml
 from dotenv import find_dotenv, load_dotenv
 from pydantic import BaseModel, Field, field_validator
 
@@ -31,6 +34,8 @@ class Settings(BaseModel):
     planner_model: str = DEFAULT_PLANNER_MODEL
     critic_model: str = DEFAULT_CRITIC_MODEL
     proposer_model: str = DEFAULT_PROPOSER_MODEL
+    model_allowlist: list[str] = []  # extra models allowed in model_routing (gen-0 pin)
+    embed_dims: int = 1024  # vector index dimensions (Voyage default)
 
     @field_validator("ns")
     @classmethod
@@ -84,6 +89,10 @@ def load_settings(dotenv: bool = True) -> Settings:
             planner_model=_env("RATCHET_PLANNER_MODEL") or DEFAULT_PLANNER_MODEL,
             critic_model=_env("RATCHET_CRITIC_MODEL") or DEFAULT_CRITIC_MODEL,
             proposer_model=_env("RATCHET_PROPOSER_MODEL") or DEFAULT_PROPOSER_MODEL,
+            model_allowlist=[
+                m.strip() for m in (_env("RATCHET_MODEL_ALLOWLIST") or "").split(",") if m.strip()
+            ],
+            embed_dims=int(_env("RATCHET_EMBED_DIMS") or 1024),
         )
     except ValueError as e:
         raise ConfigError(str(e)) from e
@@ -92,3 +101,18 @@ def load_settings(dotenv: bool = True) -> Settings:
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return load_settings()
+
+
+def repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def config_dir() -> Path:
+    """`config/` at the repo root, or `RATCHET_CONFIG_DIR` if set."""
+    override = os.environ.get("RATCHET_CONFIG_DIR")
+    return Path(override) if override else repo_root() / "config"
+
+
+def load_yaml(name: str) -> dict[str, Any]:
+    with (config_dir() / name).open() as f:
+        return yaml.safe_load(f) or {}

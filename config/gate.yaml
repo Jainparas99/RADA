@@ -1,0 +1,20 @@
+# Gate thresholds (SPEC §9). This file is part of the pinned gate source hash.
+
+static:
+  max_ops: 4               # PATCH_TOO_LARGE
+  max_added_chars: 1200    # PATCH_TOO_LARGE
+  leakage:
+    min_term_chars: 3      # shorter holdout-only names are too generic to match on
+    squash_min_chars: 6    # terms this long are also matched with separators stripped
+    # Held-out field names that are also plain query-tuning English. Without these a rule like
+    # "queries with a sort and a limit" would be rejected. Mirrors Track B's GENERIC_TERMS.
+    ignore_terms: [limit, items, item, month, best, qty, quantity, age, customer, region,
+                   channel, priority, products, result, date, name, type, score, scores,
+                   status, total, count, value, city, zip, address]
+
+dynamic:
+  holdout_min_gain: 0.03           # NO_HOLDOUT_GAIN: holdout mean must beat parent by this...
+  holdout_equal_tolerance: 0.01    # ...unless equal within this
+  token_drop_for_equal: 0.15       # ...and tokens/workload drop by at least this fraction
+  overfit_train_rise: 0.10         # OVERFIT_DIVERGENCE: train up by this while holdout <= parent
+  token_budget_factor: 1.25        # TOKEN_BUDGET_EXCEEDED: tokens/workload > factor x parent
