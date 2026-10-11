@@ -1,0 +1,164 @@
+{
+ "query": {
+  "id": "find_full_id_scan",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "directors": "Christopher Nolan"
+  },
+  "projection": null,
+  "sort": [
+   [
+    "_id",
+    1
+   ]
+  ],
+  "limit": null,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_b.movies",
+   "parsedQuery": {
+    "directors": {
+     "$eq": "Christopher Nolan"
+    }
+   },
+   "indexFilterSet": false,
+   "queryHash": "70D82056",
+   "planCacheShapeHash": "70D82056",
+   "planCacheKey": "3C47D8C6",
+   "optimizationTimeMillis": 0,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "FETCH",
+    "filter": {
+     "directors": {
+      "$eq": "Christopher Nolan"
+     }
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "keyPattern": {
+      "_id": 1
+     },
+     "indexName": "_id_",
+     "isMultiKey": false,
+     "isUnique": true,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": 2,
+     "direction": "forward",
+     "indexBounds": {
+      "_id": [
+       "[MinKey, MaxKey]"
+      ]
+     }
+    }
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 9,
+   "executionTimeMillis": 46,
+   "totalKeysExamined": 21349,
+   "totalDocsExamined": 21349,
+   "executionStages": {
+    "isCached": false,
+    "stage": "FETCH",
+    "filter": {
+     "directors": {
+      "$eq": "Christopher Nolan"
+     }
+    },
+    "nReturned": 9,
+    "executionTimeMillisEstimate": 36,
+    "works": 21350,
+    "advanced": 9,
+    "needTime": 21340,
+    "needYield": 0,
+    "saveState": 2,
+    "restoreState": 2,
+    "isEOF": 1,
+    "docsExamined": 21349,
+    "alreadyHasObj": 0,
+    "inputStage": {
+     "stage": "IXSCAN",
+     "nReturned": 21349,
+     "executionTimeMillisEstimate": 21,
+     "works": 21350,
+     "advanced": 21349,
+     "needTime": 0,
+     "needYield": 0,
+     "saveState": 2,
+     "restoreState": 2,
+     "isEOF": 1,
+     "keyPattern": {
+      "_id": 1
+     },
+     "indexName": "_id_",
+     "isMultiKey": false,
+     "isUnique": true,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": 2,
+     "direction": "forward",
+     "indexBounds": {
+      "_id": [
+       "[MinKey, MaxKey]"
+      ]
+     },
+     "keysExamined": 21349,
+     "seeks": 1,
+     "dupsTested": 0,
+     "dupsDropped": 0
+    }
+   }
+  },
+  "queryShapeHash": "4EFF8FB9613A712D8683DC1C274E12A4861FD4824BC50D7AA1E32CC153C1D172",
+  "command": {
+   "find": "movies",
+   "filter": {
+    "directors": "Christopher Nolan"
+   },
+   "sort": {
+    "_id": 1
+   },
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748442,
+     "i": 17
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "NYoKtj4xyZb8mV3AOUh+W7RsEWc=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748442,
+    "i": 17
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

@@ -1,0 +1,69 @@
+{
+ "query": {
+  "id": "find_express_id",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "_id": 1
+  },
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_fixtures.movies",
+   "parsedQuery": {
+    "_id": {
+     "$eq": 1
+    }
+   },
+   "indexFilterSet": false,
+   "queryHash": "B774D27B",
+   "planCacheShapeHash": "B774D27B",
+   "planCacheKey": "7635556C",
+   "optimizationTimeMillis": 0,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "EXPRESS_IXSCAN",
+    "keyPattern": "{ _id: 1 }",
+    "indexName": "_id_"
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 1,
+   "executionTimeMillis": 0,
+   "totalKeysExamined": 1,
+   "totalDocsExamined": 1,
+   "executionStages": {
+    "isCached": false,
+    "stage": "EXPRESS_IXSCAN",
+    "keyPattern": "{ _id: 1 }",
+    "indexName": "_id_",
+    "keysExamined": 1,
+    "docsExamined": 1,
+    "nReturned": 1
+   }
+  },
+  "command": {
+   "find": "movies",
+   "filter": {
+    "_id": 1
+   },
+   "$db": "ratchet_scratch_fixtures"
+  },
+  "ok": 1.0,
+  "serverInfo": {
+   "version": "8.2.1"
+  }
+ }
+}

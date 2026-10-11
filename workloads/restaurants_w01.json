@@ -1,0 +1,153 @@
+{
+  "id": "restaurants_w01",
+  "split": "train",
+  "db": "sample_restaurants",
+  "collections": [
+    "restaurants"
+  ],
+  "baseline_indexes": {
+    "restaurants": [
+      {
+        "keys": [
+          [
+            "borough",
+            1
+          ]
+        ],
+        "name": "borough_1"
+      },
+      {
+        "keys": [
+          [
+            "borough",
+            1
+          ],
+          [
+            "cuisine",
+            1
+          ]
+        ],
+        "name": "borough_1_cuisine_1"
+      }
+    ]
+  },
+  "write_rate": {
+    "restaurants": 10.0
+  },
+  "index_budget": {
+    "restaurants": 4
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "restaurants",
+      "filter": {
+        "borough": "Brooklyn",
+        "cuisine": "Italian"
+      },
+      "freq": 50,
+      "sort": [
+        [
+          "name",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 20,
+      "projection": {
+        "name": 1,
+        "address.street": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "restaurants",
+      "filter": {
+        "address.zipcode": "10003",
+        "cuisine": "Pizza"
+      },
+      "freq": 20,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "restaurants",
+      "filter": {
+        "cuisine": "Japanese",
+        "grades.score": {
+          "$gte": 40
+        }
+      },
+      "freq": 5,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1,
+        "borough": 1
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "restaurants",
+      "filter": {
+        "name": {
+          "$regex": "^Starbucks"
+        }
+      },
+      "freq": 10,
+      "sort": [
+        [
+          "borough",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 50,
+      "projection": {
+        "name": 1,
+        "borough": 1
+      }
+    },
+    {
+      "id": "q5",
+      "kind": "find",
+      "collection": "restaurants",
+      "filter": {
+        "restaurant_id": "40356018"
+      },
+      "freq": 200,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1
+      }
+    }
+  ],
+  "notes": "ESR with sort on name; high-frequency point lookup on restaurant_id; borough_1 redundant prefix"
+}

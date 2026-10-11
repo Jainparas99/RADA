@@ -1,0 +1,185 @@
+{
+ "query": {
+  "id": "find_projection_covered",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "year": 1999
+  },
+  "projection": {
+   "title": 1,
+   "_id": 0
+  },
+  "sort": null,
+  "limit": null,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_fixtures.movies",
+   "parsedQuery": {
+    "year": {
+     "$eq": 1999
+    }
+   },
+   "indexFilterSet": false,
+   "queryHash": "C572CFB3",
+   "planCacheShapeHash": "C572CFB3",
+   "planCacheKey": "FDFA00F0",
+   "optimizationTimeMillis": 0,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "PROJECTION_COVERED",
+    "transformBy": {
+     "title": 1,
+     "_id": 0
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "keyPattern": {
+      "year": 1,
+      "title": 1
+     },
+     "indexName": "year_1_title_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "year": [],
+      "title": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": 2,
+     "direction": "forward",
+     "indexBounds": {
+      "year": [
+       "[1999, 1999]"
+      ],
+      "title": [
+       "[MinKey, MaxKey]"
+      ]
+     }
+    }
+   },
+   "rejectedPlans": [
+    {
+     "isCached": false,
+     "stage": "PROJECTION_SIMPLE",
+     "transformBy": {
+      "title": 1,
+      "_id": 0
+     },
+     "inputStage": {
+      "stage": "FETCH",
+      "inputStage": {
+       "stage": "IXSCAN",
+       "keyPattern": {
+        "year": 1
+       },
+       "indexName": "year_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "year": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": 2,
+       "direction": "forward",
+       "indexBounds": {
+        "year": [
+         "[1999, 1999]"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 109,
+   "executionTimeMillis": 0,
+   "totalKeysExamined": 109,
+   "totalDocsExamined": 0,
+   "executionStages": {
+    "isCached": false,
+    "stage": "PROJECTION_COVERED",
+    "nReturned": 109,
+    "executionTimeMillisEstimate": 0,
+    "works": 110,
+    "advanced": 109,
+    "needTime": 0,
+    "needYield": 0,
+    "saveState": 0,
+    "restoreState": 0,
+    "isEOF": 1,
+    "transformBy": {
+     "title": 1,
+     "_id": 0
+    },
+    "inputStage": {
+     "stage": "IXSCAN",
+     "nReturned": 109,
+     "executionTimeMillisEstimate": 0,
+     "works": 110,
+     "advanced": 109,
+     "needTime": 0,
+     "needYield": 0,
+     "saveState": 0,
+     "restoreState": 0,
+     "isEOF": 1,
+     "keyPattern": {
+      "year": 1,
+      "title": 1
+     },
+     "indexName": "year_1_title_1",
+     "isMultiKey": false,
+     "multiKeyPaths": {
+      "year": [],
+      "title": []
+     },
+     "isUnique": false,
+     "isSparse": false,
+     "isPartial": false,
+     "indexVersion": 2,
+     "direction": "forward",
+     "indexBounds": {
+      "year": [
+       "[1999, 1999]"
+      ],
+      "title": [
+       "[MinKey, MaxKey]"
+      ]
+     },
+     "keysExamined": 109,
+     "seeks": 1,
+     "dupsTested": 0,
+     "dupsDropped": 0
+    }
+   }
+  },
+  "queryShapeHash": "F46C78681D0591E0F01F51565644B0526670258B89FEDA73AACD3E25168317D1",
+  "command": {
+   "find": "movies",
+   "filter": {
+    "year": 1999
+   },
+   "projection": {
+    "title": 1,
+    "_id": 0
+   },
+   "$db": "ratchet_scratch_fixtures"
+  },
+  "ok": 1.0,
+  "serverInfo": {
+   "version": "8.2.1"
+  }
+ }
+}

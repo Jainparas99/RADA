@@ -1,0 +1,167 @@
+{
+  "id": "training_w01",
+  "split": "holdout",
+  "db": "sample_training",
+  "collections": [
+    "grades"
+  ],
+  "baseline_indexes": {
+    "grades": [
+      {
+        "keys": [
+          [
+            "class_id",
+            1
+          ]
+        ],
+        "name": "class_id_1"
+      }
+    ]
+  },
+  "write_rate": {
+    "grades": 20.0
+  },
+  "index_budget": {
+    "grades": 3
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "grades",
+      "filter": {
+        "class_id": 108,
+        "student_id": {
+          "$gte": 5000
+        }
+      },
+      "freq": 30,
+      "sort": [
+        [
+          "student_id",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "student_id": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "grades",
+      "filter": {
+        "student_id": 42
+      },
+      "freq": 60,
+      "sort": [
+        [
+          "class_id",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "class_id": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "grades",
+      "filter": {
+        "scores": {
+          "$elemMatch": {
+            "type": "exam",
+            "score": {
+              "$gte": 99.9
+            }
+          }
+        }
+      },
+      "freq": 4,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 20,
+      "projection": {
+        "student_id": 1,
+        "class_id": 1
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "aggregate",
+      "collection": "grades",
+      "pipeline": [
+        {
+          "$match": {
+            "class_id": 299
+          }
+        },
+        {
+          "$unwind": "$scores"
+        },
+        {
+          "$match": {
+            "scores.type": "exam"
+          }
+        },
+        {
+          "$group": {
+            "_id": null,
+            "best": {
+              "$max": "$scores.score"
+            },
+            "n": {
+              "$sum": 1
+            }
+          }
+        }
+      ],
+      "freq": 10
+    },
+    {
+      "id": "q5",
+      "kind": "find",
+      "collection": "grades",
+      "filter": {
+        "class_id": {
+          "$in": [
+            108,
+            299
+          ]
+        },
+        "student_id": {
+          "$lt": 200
+        }
+      },
+      "freq": 12,
+      "sort": [
+        [
+          "student_id",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "student_id": 1,
+        "class_id": 1
+      }
+    }
+  ],
+  "notes": "100k docs; ESR on class_id+student_id; point lookup by student_id; $elemMatch on array"
+}
