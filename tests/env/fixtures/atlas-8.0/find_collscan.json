@@ -1,0 +1,141 @@
+{
+ "query": {
+  "id": "find_collscan",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "directors": "Christopher Nolan",
+   "runtime": {
+    "$gt": 0
+   }
+  },
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_b.movies",
+   "parsedQuery": {
+    "$and": [
+     {
+      "directors": {
+       "$eq": "Christopher Nolan"
+      }
+     },
+     {
+      "runtime": {
+       "$gt": 0
+      }
+     }
+    ]
+   },
+   "indexFilterSet": false,
+   "queryHash": "502107A8",
+   "planCacheShapeHash": "502107A8",
+   "planCacheKey": "E1CE92D8",
+   "optimizationTimeMillis": 0,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "$and": [
+      {
+       "directors": {
+        "$eq": "Christopher Nolan"
+       }
+      },
+      {
+       "runtime": {
+        "$gt": 0
+       }
+      }
+     ]
+    },
+    "direction": "forward"
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 9,
+   "executionTimeMillis": 24,
+   "totalKeysExamined": 0,
+   "totalDocsExamined": 21349,
+   "executionStages": {
+    "isCached": false,
+    "stage": "COLLSCAN",
+    "filter": {
+     "$and": [
+      {
+       "directors": {
+        "$eq": "Christopher Nolan"
+       }
+      },
+      {
+       "runtime": {
+        "$gt": 0
+       }
+      }
+     ]
+    },
+    "nReturned": 9,
+    "executionTimeMillisEstimate": 19,
+    "works": 21350,
+    "advanced": 9,
+    "needTime": 21340,
+    "needYield": 0,
+    "saveState": 1,
+    "restoreState": 1,
+    "isEOF": 1,
+    "direction": "forward",
+    "docsExamined": 21349
+   }
+  },
+  "queryShapeHash": "4F27EF0D809FC653193CE6629C6D6194F4DFF696A4B4EDB928B4A14A384A98BB",
+  "command": {
+   "find": "movies",
+   "filter": {
+    "directors": "Christopher Nolan",
+    "runtime": {
+     "$gt": 0
+    }
+   },
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748442,
+     "i": 17
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "NYoKtj4xyZb8mV3AOUh+W7RsEWc=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748442,
+    "i": 17
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

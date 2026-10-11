@@ -1,0 +1,14 @@
+# Scorer weights (SPEC §5.6). Changing this file changes scoring.SOURCE_HASH.
+version: "1"
+# index_penalty = Σ_new α·write_rate[coll] + β·size_MB(new) − γ·(# dropped redundant/unused baseline indexes)
+alpha: 0.002      # per new index, per write/sec on its collection (40 w/s -> 0.08)
+beta: 0.01        # per MB of new index
+gamma: 0.02       # credit per dropped baseline index that was redundant (prefix) or unused
+# Final score is clamped to [score_min, score_max].
+score_min: -1.0
+score_max: 1.0
+# Data checksum: auto = dbHash if the tier allows it, else full-document hash for
+# collections <= full_max_mb, else count + _id hash.
+checksum:
+  mode: auto
+  full_max_mb: 50

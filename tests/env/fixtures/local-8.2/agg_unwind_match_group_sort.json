@@ -1,0 +1,196 @@
+{
+ "query": {
+  "id": "agg_unwind_match_group_sort",
+  "kind": "aggregate",
+  "collection": "movies",
+  "filter": {},
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": [
+   {
+    "$unwind": "$genres"
+   },
+   {
+    "$match": {
+     "genres": "Drama"
+    }
+   },
+   {
+    "$group": {
+     "_id": "$year",
+     "n": {
+      "$sum": 1
+     }
+    }
+   },
+   {
+    "$sort": {
+     "_id": 1
+    }
+   }
+  ],
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "ratchet_scratch_fixtures.movies",
+      "parsedQuery": {},
+      "indexFilterSet": false,
+      "queryHash": "46CDB5B3",
+      "planCacheShapeHash": "46CDB5B3",
+      "planCacheKey": "1D2D1196",
+      "optimizationTimeMillis": 0,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+       "isCached": false,
+       "stage": "PROJECTION_SIMPLE",
+       "transformBy": {
+        "genres": 1,
+        "year": 1,
+        "_id": 0
+       },
+       "inputStage": {
+        "stage": "COLLSCAN",
+        "direction": "forward"
+       }
+      },
+      "rejectedPlans": []
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 8000,
+      "executionTimeMillis": 5,
+      "totalKeysExamined": 0,
+      "totalDocsExamined": 8000,
+      "executionStages": {
+       "isCached": false,
+       "stage": "PROJECTION_SIMPLE",
+       "nReturned": 8000,
+       "executionTimeMillisEstimate": 0,
+       "works": 8001,
+       "advanced": 8000,
+       "needTime": 0,
+       "needYield": 0,
+       "saveState": 9,
+       "restoreState": 8,
+       "isEOF": 1,
+       "transformBy": {
+        "genres": 1,
+        "year": 1,
+        "_id": 0
+       },
+       "inputStage": {
+        "stage": "COLLSCAN",
+        "nReturned": 8000,
+        "executionTimeMillisEstimate": 0,
+        "works": 8001,
+        "advanced": 8000,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 9,
+        "restoreState": 8,
+        "isEOF": 1,
+        "direction": "forward",
+        "docsExamined": 8000
+       }
+      }
+     }
+    },
+    "nReturned": 8000,
+    "executionTimeMillisEstimate": 2
+   },
+   {
+    "$unwind": {
+     "path": "$genres"
+    },
+    "nReturned": 16079,
+    "executionTimeMillisEstimate": 2
+   },
+   {
+    "$match": {
+     "genres": {
+      "$eq": "Drama"
+     }
+    },
+    "nReturned": 2374,
+    "executionTimeMillisEstimate": 2
+   },
+   {
+    "$group": {
+     "_id": "$year",
+     "n": {
+      "$sum": {
+       "$const": 1
+      }
+     },
+     "$willBeMerged": false
+    },
+    "maxAccumulatorMemoryUsageBytes": {
+     "n": 12880
+    },
+    "totalOutputDataSizeBytes": 16590,
+    "usedDisk": false,
+    "spills": 0,
+    "spilledDataStorageSize": 0,
+    "spilledBytes": 0,
+    "spilledRecords": 0,
+    "nReturned": 70,
+    "executionTimeMillisEstimate": 2
+   },
+   {
+    "$sort": {
+     "sortKey": {
+      "_id": 1
+     }
+    },
+    "totalDataSizeSortedBytesEstimate": 17150,
+    "usedDisk": false,
+    "spills": 0,
+    "spilledDataStorageSize": 0,
+    "nReturned": 70,
+    "executionTimeMillisEstimate": 2
+   }
+  ],
+  "queryShapeHash": "5CB60E283DDB0138D8E696A1A09B66BD6CE2661F76104B62BCCA175007B54A79",
+  "command": {
+   "aggregate": "movies",
+   "pipeline": [
+    {
+     "$unwind": "$genres"
+    },
+    {
+     "$match": {
+      "genres": "Drama"
+     }
+    },
+    {
+     "$group": {
+      "_id": "$year",
+      "n": {
+       "$sum": 1
+      }
+     }
+    },
+    {
+     "$sort": {
+      "_id": 1
+     }
+    }
+   ],
+   "cursor": {},
+   "$db": "ratchet_scratch_fixtures"
+  },
+  "ok": 1.0,
+  "serverInfo": {
+   "version": "8.2.1"
+  }
+ }
+}

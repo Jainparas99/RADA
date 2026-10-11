@@ -1,0 +1,286 @@
+{
+ "query": {
+  "id": "find_or",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "$or": [
+    {
+     "year": 1999
+    },
+    {
+     "year": 2001
+    }
+   ]
+  },
+  "projection": null,
+  "sort": [
+   [
+    "_id",
+    1
+   ]
+  ],
+  "limit": 20,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_b.movies",
+   "parsedQuery": {
+    "year": {
+     "$in": [
+      1999,
+      2001
+     ]
+    }
+   },
+   "indexFilterSet": false,
+   "queryHash": "3D14B05A",
+   "planCacheShapeHash": "3D14B05A",
+   "planCacheKey": "A288DBB6",
+   "optimizationTimeMillis": 9,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "SORT",
+    "sortPattern": {
+     "_id": 1
+    },
+    "memLimit": 104857600,
+    "limitAmount": 20,
+    "type": "simple",
+    "inputStage": {
+     "stage": "FETCH",
+     "inputStage": {
+      "stage": "IXSCAN",
+      "keyPattern": {
+       "year": 1
+      },
+      "indexName": "year_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "year": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": 2,
+      "direction": "forward",
+      "indexBounds": {
+       "year": [
+        "[1999, 1999]",
+        "[2001, 2001]"
+       ]
+      }
+     }
+    }
+   },
+   "rejectedPlans": [
+    {
+     "isCached": false,
+     "stage": "SORT",
+     "sortPattern": {
+      "_id": 1
+     },
+     "memLimit": 104857600,
+     "limitAmount": 20,
+     "type": "simple",
+     "inputStage": {
+      "stage": "FETCH",
+      "inputStage": {
+       "stage": "IXSCAN",
+       "keyPattern": {
+        "year": 1,
+        "title": 1
+       },
+       "indexName": "year_1_title_1",
+       "isMultiKey": false,
+       "multiKeyPaths": {
+        "year": [],
+        "title": []
+       },
+       "isUnique": false,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": 2,
+       "direction": "forward",
+       "indexBounds": {
+        "year": [
+         "[1999, 1999]",
+         "[2001, 2001]"
+        ],
+        "title": [
+         "[MinKey, MaxKey]"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "isCached": false,
+     "stage": "LIMIT",
+     "limitAmount": 20,
+     "inputStage": {
+      "stage": "FETCH",
+      "filter": {
+       "year": {
+        "$in": [
+         1999,
+         2001
+        ]
+       }
+      },
+      "inputStage": {
+       "stage": "IXSCAN",
+       "keyPattern": {
+        "_id": 1
+       },
+       "indexName": "_id_",
+       "isMultiKey": false,
+       "isUnique": true,
+       "isSparse": false,
+       "isPartial": false,
+       "indexVersion": 2,
+       "direction": "forward",
+       "indexBounds": {
+        "_id": [
+         "[MinKey, MaxKey]"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 20,
+   "executionTimeMillis": 9,
+   "totalKeysExamined": 1129,
+   "totalDocsExamined": 1127,
+   "executionStages": {
+    "isCached": false,
+    "stage": "SORT",
+    "nReturned": 20,
+    "executionTimeMillisEstimate": 0,
+    "works": 1150,
+    "advanced": 20,
+    "needTime": 1129,
+    "needYield": 0,
+    "saveState": 0,
+    "restoreState": 0,
+    "isEOF": 1,
+    "sortPattern": {
+     "_id": 1
+    },
+    "memLimit": 104857600,
+    "limitAmount": 20,
+    "type": "simple",
+    "totalDataSizeSorted": 36428,
+    "usedDisk": false,
+    "spills": 0,
+    "spilledDataStorageSize": 0,
+    "inputStage": {
+     "stage": "FETCH",
+     "nReturned": 1127,
+     "executionTimeMillisEstimate": 0,
+     "works": 1129,
+     "advanced": 1127,
+     "needTime": 1,
+     "needYield": 0,
+     "saveState": 0,
+     "restoreState": 0,
+     "isEOF": 1,
+     "docsExamined": 1127,
+     "alreadyHasObj": 0,
+     "inputStage": {
+      "stage": "IXSCAN",
+      "nReturned": 1127,
+      "executionTimeMillisEstimate": 0,
+      "works": 1129,
+      "advanced": 1127,
+      "needTime": 1,
+      "needYield": 0,
+      "saveState": 0,
+      "restoreState": 0,
+      "isEOF": 1,
+      "keyPattern": {
+       "year": 1
+      },
+      "indexName": "year_1",
+      "isMultiKey": false,
+      "multiKeyPaths": {
+       "year": []
+      },
+      "isUnique": false,
+      "isSparse": false,
+      "isPartial": false,
+      "indexVersion": 2,
+      "direction": "forward",
+      "indexBounds": {
+       "year": [
+        "[1999, 1999]",
+        "[2001, 2001]"
+       ]
+      },
+      "keysExamined": 1129,
+      "seeks": 2,
+      "dupsTested": 0,
+      "dupsDropped": 0
+     }
+    }
+   }
+  },
+  "queryShapeHash": "D8900DD7AA707F8F5D4A4C5586E5FEDD1F629BAB609AA5D8F02035E3F818E85C",
+  "command": {
+   "find": "movies",
+   "filter": {
+    "$or": [
+     {
+      "year": 1999
+     },
+     {
+      "year": 2001
+     }
+    ]
+   },
+   "sort": {
+    "_id": 1
+   },
+   "limit": 20,
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748442,
+     "i": 17
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "NYoKtj4xyZb8mV3AOUh+W7RsEWc=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748442,
+    "i": 17
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

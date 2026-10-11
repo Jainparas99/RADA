@@ -1,0 +1,162 @@
+{
+  "id": "airbnb_w01",
+  "split": "train",
+  "db": "sample_airbnb",
+  "collections": [
+    "listingsAndReviews"
+  ],
+  "baseline_indexes": {
+    "listingsAndReviews": [
+      {
+        "keys": [
+          [
+            "property_type",
+            1
+          ],
+          [
+            "room_type",
+            1
+          ],
+          [
+            "beds",
+            1
+          ]
+        ],
+        "name": "property_type_1_room_type_1_beds_1"
+      },
+      {
+        "keys": [
+          [
+            "name",
+            1
+          ]
+        ],
+        "name": "name_1"
+      }
+    ]
+  },
+  "write_rate": {
+    "listingsAndReviews": 5.0
+  },
+  "index_budget": {
+    "listingsAndReviews": 4
+  },
+  "queries": [
+    {
+      "id": "q1",
+      "kind": "find",
+      "collection": "listingsAndReviews",
+      "filter": {
+        "address.market": "Barcelona",
+        "room_type": "Private room",
+        "bedrooms": 1
+      },
+      "freq": 40,
+      "sort": [
+        [
+          "price",
+          1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 20,
+      "projection": {
+        "name": 1,
+        "price": 1
+      }
+    },
+    {
+      "id": "q2",
+      "kind": "find",
+      "collection": "listingsAndReviews",
+      "filter": {
+        "property_type": "Loft",
+        "address.country": "Spain"
+      },
+      "freq": 15,
+      "sort": [
+        [
+          "number_of_reviews",
+          -1
+        ],
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 10,
+      "projection": {
+        "name": 1,
+        "number_of_reviews": 1
+      }
+    },
+    {
+      "id": "q3",
+      "kind": "find",
+      "collection": "listingsAndReviews",
+      "filter": {
+        "host.host_is_superhost": true,
+        "address.market": "Porto",
+        "accommodates": {
+          "$gte": 6
+        }
+      },
+      "freq": 10,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1,
+        "accommodates": 1
+      }
+    },
+    {
+      "id": "q4",
+      "kind": "find",
+      "collection": "listingsAndReviews",
+      "filter": {
+        "amenities": "Pool",
+        "address.market": "Hong Kong"
+      },
+      "freq": 8,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "projection": {
+        "name": 1
+      }
+    },
+    {
+      "id": "q5",
+      "kind": "find",
+      "collection": "listingsAndReviews",
+      "filter": {
+        "name": {
+          "$regex": "ocean",
+          "$options": "i"
+        }
+      },
+      "freq": 3,
+      "sort": [
+        [
+          "_id",
+          1
+        ]
+      ],
+      "limit": 20,
+      "projection": {
+        "name": 1
+      }
+    }
+  ],
+  "notes": "large documents; existing prefix index only partly useful; unanchored case-insensitive regex can't be bounded"
+}

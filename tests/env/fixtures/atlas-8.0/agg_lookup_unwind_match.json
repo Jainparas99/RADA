@@ -1,0 +1,222 @@
+{
+ "query": {
+  "id": "agg_lookup_unwind_match",
+  "kind": "aggregate",
+  "collection": "comments",
+  "filter": {},
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": [
+   {
+    "$lookup": {
+     "from": "movies",
+     "localField": "movie_id",
+     "foreignField": "_id",
+     "as": "m"
+    }
+   },
+   {
+    "$unwind": "$m"
+   },
+   {
+    "$match": {
+     "m.year": 2012
+    }
+   },
+   {
+    "$count": "n"
+   }
+  ],
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "stages": [
+   {
+    "$cursor": {
+     "queryPlanner": {
+      "namespace": "ratchet_scratch_b.comments",
+      "parsedQuery": {},
+      "indexFilterSet": false,
+      "queryHash": "D0ADF072",
+      "planCacheShapeHash": "D0ADF072",
+      "planCacheKey": "7E29A1BA",
+      "optimizationTimeMillis": 0,
+      "maxIndexedOrSolutionsReached": false,
+      "maxIndexedAndSolutionsReached": false,
+      "maxScansToExplodeReached": false,
+      "prunedSimilarIndexes": false,
+      "winningPlan": {
+       "isCached": false,
+       "stage": "PROJECTION_SIMPLE",
+       "transformBy": {
+        "movie_id": 1,
+        "_id": 0
+       },
+       "inputStage": {
+        "stage": "COLLSCAN",
+        "direction": "forward"
+       }
+      },
+      "rejectedPlans": []
+     },
+     "executionStats": {
+      "executionSuccess": true,
+      "nReturned": 41079,
+      "executionTimeMillis": 3662,
+      "totalKeysExamined": 0,
+      "totalDocsExamined": 41079,
+      "executionStages": {
+       "isCached": false,
+       "stage": "PROJECTION_SIMPLE",
+       "nReturned": 41079,
+       "executionTimeMillisEstimate": 27,
+       "works": 41080,
+       "advanced": 41079,
+       "needTime": 0,
+       "needYield": 0,
+       "saveState": 20,
+       "restoreState": 20,
+       "isEOF": 1,
+       "transformBy": {
+        "movie_id": 1,
+        "_id": 0
+       },
+       "inputStage": {
+        "stage": "COLLSCAN",
+        "nReturned": 41079,
+        "executionTimeMillisEstimate": 22,
+        "works": 41080,
+        "advanced": 41079,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 20,
+        "restoreState": 20,
+        "isEOF": 1,
+        "direction": "forward",
+        "docsExamined": 41079
+       }
+      }
+     }
+    },
+    "nReturned": 41079,
+    "executionTimeMillisEstimate": 27
+   },
+   {
+    "$lookup": {
+     "from": "movies",
+     "as": "m",
+     "localField": "movie_id",
+     "foreignField": "_id",
+     "let": {},
+     "pipeline": [
+      {
+       "$match": {
+        "year": {
+         "$eq": 2012
+        }
+       }
+      }
+     ],
+     "unwinding": {
+      "preserveNullAndEmptyArrays": false
+     }
+    },
+    "totalDocsExamined": 40154,
+    "totalKeysExamined": 40154,
+    "collectionScans": 0,
+    "indexesUsed": [
+     "_id_"
+    ],
+    "nReturned": 944,
+    "executionTimeMillisEstimate": 3662
+   },
+   {
+    "$group": {
+     "_id": {
+      "$const": null
+     },
+     "n": {
+      "$sum": {
+       "$const": 1
+      }
+     }
+    },
+    "maxAccumulatorMemoryUsageBytes": {
+     "n": 128
+    },
+    "totalOutputDataSizeBytes": 245,
+    "usedDisk": false,
+    "spills": 0,
+    "spilledDataStorageSize": 0,
+    "numBytesSpilledEstimate": 0,
+    "spilledRecords": 0,
+    "nReturned": 1,
+    "executionTimeMillisEstimate": 3662
+   },
+   {
+    "$project": {
+     "n": true,
+     "_id": false
+    },
+    "nReturned": 1,
+    "executionTimeMillisEstimate": 3662
+   }
+  ],
+  "queryShapeHash": "AAB67733AC4BF7B59A1F3F62CE04A28B9FE248D716BDC625B1EF88A427F62293",
+  "command": {
+   "aggregate": "comments",
+   "pipeline": [
+    {
+     "$lookup": {
+      "from": "movies",
+      "localField": "movie_id",
+      "foreignField": "_id",
+      "as": "m"
+     }
+    },
+    {
+     "$unwind": "$m"
+    },
+    {
+     "$match": {
+      "m.year": 2012
+     }
+    },
+    {
+     "$count": "n"
+    }
+   ],
+   "cursor": {},
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748442,
+     "i": 17
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "NYoKtj4xyZb8mV3AOUh+W7RsEWc=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748442,
+    "i": 17
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}

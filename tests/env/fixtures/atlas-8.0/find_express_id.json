@@ -1,0 +1,92 @@
+{
+ "query": {
+  "id": "find_express_id",
+  "kind": "find",
+  "collection": "movies",
+  "filter": {
+   "_id": 1
+  },
+  "projection": null,
+  "sort": null,
+  "limit": null,
+  "pipeline": null,
+  "freq": 1.0
+ },
+ "explain": {
+  "explainVersion": "1",
+  "queryPlanner": {
+   "namespace": "ratchet_scratch_b.movies",
+   "parsedQuery": {
+    "_id": {
+     "$eq": 1
+    }
+   },
+   "indexFilterSet": false,
+   "queryHash": "9B5DE45B",
+   "planCacheShapeHash": "9B5DE45B",
+   "planCacheKey": "B4738D99",
+   "optimizationTimeMillis": 0,
+   "maxIndexedOrSolutionsReached": false,
+   "maxIndexedAndSolutionsReached": false,
+   "maxScansToExplodeReached": false,
+   "prunedSimilarIndexes": false,
+   "winningPlan": {
+    "isCached": false,
+    "stage": "EXPRESS_IXSCAN",
+    "keyPattern": "{ _id: 1 }",
+    "indexName": "_id_"
+   },
+   "rejectedPlans": []
+  },
+  "executionStats": {
+   "executionSuccess": true,
+   "nReturned": 0,
+   "executionTimeMillis": 0,
+   "totalKeysExamined": 0,
+   "totalDocsExamined": 0,
+   "executionStages": {
+    "isCached": false,
+    "stage": "EXPRESS_IXSCAN",
+    "keyPattern": "{ _id: 1 }",
+    "indexName": "_id_",
+    "keysExamined": 0,
+    "docsExamined": 0,
+    "nReturned": 0
+   }
+  },
+  "command": {
+   "find": "movies",
+   "filter": {
+    "_id": 1
+   },
+   "$db": "ratchet_scratch_b"
+  },
+  "ok": 1.0,
+  "$clusterTime": {
+   "clusterTime": {
+    "$timestamp": {
+     "t": 1791748442,
+     "i": 17
+    }
+   },
+   "signature": {
+    "hash": {
+     "$binary": {
+      "base64": "NYoKtj4xyZb8mV3AOUh+W7RsEWc=",
+      "subType": "00"
+     }
+    },
+    "keyId": 7695494883670228997
+   }
+  },
+  "operationTime": {
+   "$timestamp": {
+    "t": 1791748442,
+    "i": 17
+   }
+  },
+  "serverInfo": {
+   "version": "8.0.34"
+  }
+ }
+}
