@@ -26,7 +26,11 @@ voyage = ["voyageai>=0.3"]
 ratchet = "ratchet.cli:app"
 
 [dependency-groups]
-dev = ["pytest>=8.3", "ruff>=0.6"]
+dev = [
+    "mongomock>=4.3.0",
+    "pytest>=8.3",
+ "ruff>=0.6",
+]
 
 [build-system]
 requires = ["hatchling"]

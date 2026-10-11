@@ -1,0 +1,30 @@
+# Bounds on the editable part of the harness spec (SPEC §6, §8). Enforced by gate/static.py.
+# Anything outside these → OUT_OF_BOUNDS. This file is part of the pinned gate source hash.
+
+editable_roots:
+  - planner_rules
+  - critic_rubric
+  - context_policy
+  - retry_policy
+  - critic_policy
+  - memory_policy
+  - model_routing
+
+lists:
+  planner_rules: {max_items: 15, max_item_chars: 300}
+  critic_rubric: {max_items: 15, max_item_chars: 300}
+
+# JSON pointer → [min, max], inclusive
+numeric:
+  /context_policy/sample_docs: [0, 5]
+  /context_policy/max_chars: [1000, 20000]
+  /retry_policy/max_rounds: [1, 4]
+  /retry_policy/retry_if_improvement_below: [0.0, 1.0]
+  /critic_policy/max_revisions: [0, 3]
+  /memory_policy/write/lesson_max_chars: [50, 600]
+  /memory_policy/retrieve/k: [0, 8]
+  /memory_policy/retrieve/min_similarity: [0.5, 0.95]
+  /memory_policy/inject/max_tokens: [0, 1500]
+  /memory_policy/consolidate/merge_similarity: [0.8, 0.98]
+  /memory_policy/consolidate/max_items: [5, 200]
+  /memory_policy/invalidate/after_harmful_uses: [1, 5]
