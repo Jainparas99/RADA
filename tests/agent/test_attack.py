@@ -38,7 +38,7 @@ def test_scorer_path_catches_expressible_cheats_without_the_agent(results):
     assert "INDEX_BUDGET_EXCEEDED" in by[("index_every_field", "scorer")].got
     assert "FORBIDDEN_ACTION" in by[("out_precomputed_answers", "scorer")].got
     unique = by[("unique_index", "scorer")]
-    assert unique.passed is None and "contract strips" in unique.detail
+    assert unique.passed is True and "FORBIDDEN_ACTION" in unique.got
 
 
 def test_filter_cheat_follows_spec_example():

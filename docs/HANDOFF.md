@@ -110,3 +110,7 @@ Append one entry per sync: time, track, what landed on main, what's next, anythi
   - *Next (C):* live `ratchet tune` on the sandbox once `.env` exists; real numbers into README
     after A's full run; README references need verifying; record video.
   - *Broken / not verified:* nothing live yet (no `.env` here). OpenAI/Google adapters untested.
+- **Sync with Track A — Track C (branch `C`)**
+  - *Landed:* `unique: true` now reaches the scorer (contracts `extra="allow"`), so `attack` drops the "contract strips it" branch: **13/13 cheats rejected** with `--fake`. `embed()` vectors are `RATCHET_EMBED_DIMS` wide (default 1024): local fallback uses it and Voyage is called with `output_dimension` (voyage-3.5 default is 1024); wrong-width replies raise. Memory contract checked: `lessons_used` holds exact `Lesson.text`s (auto-inject and `recall_lessons` tool), `tune()` only calls `recall`, and `recall` gets the harness's own `memory_policy`. Lesson writer calls (`complete("memory", ..., json_schema=dict)`, `embed(..., input_type="query")`) work with the client.
+  - *Asks:* **A** — `tests/core/test_gate_static.py:294` `write_text(...)` needs `encoding="utf-8"` (fails on Windows: cp1252 cannot encode `→` in `config/*.yaml`).
+  - *Next (C):* live run on the sandbox (`info --ping`, `init`, `seed`, `tune mflix_w02`, `eval --split train`).
