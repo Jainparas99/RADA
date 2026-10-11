@@ -30,6 +30,7 @@ class Settings(BaseModel):
     anthropic_api_key: str | None = Field(default=None, repr=False)
     openai_api_key: str | None = Field(default=None, repr=False)
     google_api_key: str | None = Field(default=None, repr=False)
+    groq_api_key: str | None = Field(default=None, repr=False)
     voyage_api_key: str | None = Field(default=None, repr=False)
     planner_model: str = DEFAULT_PLANNER_MODEL
     critic_model: str = DEFAULT_CRITIC_MODEL
@@ -85,6 +86,7 @@ def load_settings(dotenv: bool = True) -> Settings:
             anthropic_api_key=_env("ANTHROPIC_API_KEY"),
             openai_api_key=_env("OPENAI_API_KEY"),
             google_api_key=_env("GOOGLE_API_KEY"),
+            groq_api_key=_env("GROQ_API_KEY"),
             voyage_api_key=_env("VOYAGE_API_KEY"),
             planner_model=_env("RATCHET_PLANNER_MODEL") or DEFAULT_PLANNER_MODEL,
             critic_model=_env("RATCHET_CRITIC_MODEL") or DEFAULT_CRITIC_MODEL,
