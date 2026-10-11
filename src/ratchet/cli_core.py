@@ -241,6 +241,10 @@ def _print_event(kind: str, data: dict) -> None:
         console.print(f"  [red]canary failed for {data['version']}[/red]")
     elif kind == "rollback":
         console.print(f"  [yellow]auto-rollback {data['from']} → {data['to']}[/yellow]")
+    elif kind == "lessons":
+        console.print(
+            f"  memory: {data['written']} new lesson(s) from {data['version']} train runs"
+        )
     elif kind == "proposal":
         for p in data["patch"]:
             console.print(f"  proposed: {p['op']} {p['path']}")
@@ -270,13 +274,22 @@ def evolve(
         if fake:
             import mongomock
 
-            from ratchet.fakes import FakeBackend, scripted_proposer_llm
+            from ratchet.fakes import FakeBackend, FakeEnv, fake_memory_llm, scripted_proposer_llm
             from ratchet.harness.init_db import init_database
+            from ratchet.memory import MemoryStore
             from ratchet.proposer.propose import propose
 
             database = mongomock.MongoClient(tz_aware=True)["ratchet_fake"]
             init_database(database, vector=False)
             llm = scripted_proposer_llm()
+            mem_llm = fake_memory_llm()
+            mem = MemoryStore(
+                database,
+                embed=mem_llm.embed,
+                complete=mem_llm.complete,
+                shape_fn=FakeEnv().query_shape,
+                model="fake:scripted",
+            )
             console.print(
                 "[yellow]FAKE run: in-memory DB, FakeEnv, fake agent, scripted proposer. "
                 "Numbers are not real.[/yellow]"
@@ -285,18 +298,21 @@ def evolve(
                 database,
                 FakeBackend(),
                 lambda ctx: propose(ctx, complete=llm.complete, model="fake:scripted"),
+                memory=mem,
                 proposer_model="fake:scripted",
                 on_event=_print_event,
             )
         else:
-            from ratchet import db
+            from ratchet import db, memory
             from ratchet.proposer.propose import propose
 
             model = get_settings().proposer_model
+            mem = memory.default_store()  # the same store the agent recalls from
             ev = Evolver(
                 db.get_db(),
                 runner.RealBackend(),
                 propose,
+                memory=mem,
                 proposer_model=model,
                 on_event=_print_event,
             )
@@ -304,6 +320,7 @@ def evolve(
     except (ConfigError, runner.BackendUnavailable, RuntimeError, ImportError) as e:
         raise _fail(str(e)) from e
     console.print(history_table(ev.store))
+    console.print(memory_table(mem))
     if fake:
         accepted = [r for r in records if r.verdict == "ACCEPT"]
         if accepted:
@@ -346,3 +363,47 @@ def rollback(version: str = typer.Argument(..., help="Accepted version to make t
     except (ConfigError, StoreError, ValueError) as e:
         raise _fail(str(e)) from e
     console.print(f"head is now [bold]{doc.id}[/bold]")
+
+
+def memory_table(store) -> Table:
+    stats = store.stats()
+    t = Table(
+        title=f"lesson memory · {stats['active']} active · uses {stats['uses']}"
+        f" · helpful {stats['helpful']} · harmful {stats['harmful']}"
+    )
+    for col in ("id", "status", "source", "from", "support", "uses", "helpful", "harmful"):
+        right = col in ("support", "uses", "helpful", "harmful")
+        t.add_column(col, justify="right" if right else "left")
+    t.add_column("lesson")
+    t.add_column("learned on shape", overflow="fold")
+    colours = {"active": "green", "invalidated": "red", "merged": "dim", "evicted": "dim"}
+    for x in store.all():
+        t.add_row(
+            x.id,
+            f"[{colours[x.status]}]{x.status}[/{colours[x.status]}]",
+            x.source.removeprefix("train_"),
+            x.source_workload,
+            str(x.support),
+            str(x.uses),
+            str(x.helpful),
+            str(x.harmful),
+            x.text,
+            x.shape,
+        )
+    return t
+
+
+def _memory_store():
+    from ratchet import db
+    from ratchet.memory import MemoryStore
+
+    return MemoryStore(db.get_db(), embed=lambda texts, **kw: [])  # read-only listing
+
+
+@app.command()
+def memory() -> None:
+    """Lessons learned on train workloads, with helpful/harmful counts."""
+    try:
+        console.print(memory_table(_memory_store()))
+    except ConfigError as e:
+        raise _fail(str(e)) from e

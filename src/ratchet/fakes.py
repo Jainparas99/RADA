@@ -40,6 +40,7 @@ __all__ = [
     "FakeLLMResponse",
     "FakeScratch",
     "SCRIPTED_PROPOSALS",
+    "fake_memory_llm",
     "fake_tune",
     "fake_workloads",
     "heuristic_plan",
@@ -281,6 +282,9 @@ class FakeEnv:
     def _apply_one(
         self, env: FakeScratch, workload: Workload, a: Action, rep: FakeApplyReport
     ) -> tuple[str, str] | None:
+        extras = sorted({*(a.model_extra or {}), *((a.index.model_extra or {}) if a.index else {})})
+        if extras:
+            return "FORBIDDEN_ACTION", f"options not allowed: {', '.join(extras)}"
         if a.type == "create_index":
             if a.collection not in env.indexes or a.index is None or not a.index.keys:
                 return "APPLY_ERROR", "create_index needs a workload collection and keys"
@@ -717,3 +721,18 @@ SCRIPTED_PROPOSALS: list[dict] = [
 def scripted_proposer_llm() -> FakeLLM:
     """A FakeLLM that replays SCRIPTED_PROPOSALS for the proposer role, then repeats the last."""
     return FakeLLM({"proposer": list(SCRIPTED_PROPOSALS)}, default=SCRIPTED_PROPOSALS[-1])
+
+
+def fake_memory_llm() -> FakeLLM:
+    """Scripted lesson writer + deterministic embeddings for the memory store."""
+
+    def lesson(call: dict) -> dict:
+        brief = json.loads(call["messages"][-1]["content"])
+        qid = next(iter(brief["query_shapes"]), "q1")
+        if brief["violations"]:
+            text = "Count existing indexes before adding one; never exceed the index budget."
+        else:
+            text = "Put equality fields first, then the sort field, then range fields."
+        return {"query_id": qid, "lesson": text}
+
+    return FakeLLM(default=lesson)

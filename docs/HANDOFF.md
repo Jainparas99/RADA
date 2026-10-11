@@ -29,6 +29,21 @@ Append one entry per sync: time, track, what landed on main, what's next, anythi
   - **Note for C:** `C` is still based on A1. Merge `main` and `person_A` before the next push; `attack --outer` imports `ratchet.gate.*` and `ratchet.harness.gen0`, which only exist on `person_A`.
   - **Note for B:** A's leak matcher is `gate/leakage.py::LeakTerms` (also folds unicode look-alikes); it does not use `holdout_terms`. X1 can start: `gate/` is on `person_A`.
   - **Still missing (A):** `ratchet.memory` (A5). `tune()` already calls `ratchet.memory.recall(shape, policy)` when it exists.
+
+- (2026-10-11, Track A, after A5 code; on `person_A`)
+  - **Landed:** `ratchet.memory` (SPEC §8): `recall(shape, policy)` and `write_lessons(results, policy, queries)` at module level, `MemoryStore` (LLM-distilled lessons from train results, shape + text embeddings, `$vectorSearch` retrieval with exact-cosine fallback, `k` / `min_similarity`, consolidation by `merge_similarity` + `max_items`, helpful/harmful accounting, invalidation after harmful uses, write freeze), `inject_text(lessons, max_tokens)`, `ratchet memory`. `evolve` writes lessons from the head's and newly accepted versions' TRAIN runs, freezes memory while holdout/canary run, feeds counts-only memory stats to the proposer, and the static gate returns `HOLDOUT_LEAKAGE` if any active lesson names a held-out collection/field.
+  - **Only tested on fakes + mongomock.** The `$vectorSearch` call and the Atlas score → cosine conversion (`2*score - 1`) have not run against the sandbox. The full run (`RATCHET_NS=main`, `evolve --gens 8`) has NOT been done: `main` has no Track C code yet and this machine has no `.env`.
+  - **For Track C:** `recall` returns `Lesson` objects with `.text` (and `.similarity`). Put the lesson *texts* you injected into `TuneResult.lessons_used`; helpful/harmful accounting matches on text. Lesson distillation calls `llm.complete("memory", <planner model>, messages, json_schema=<dict>)`; embeddings call `llm.embed(texts)` and `llm.embed([shape], input_type="query")`.
+  - **Track A depends on Track C for:** `ratchet.llm.complete` (proposer, lesson writer), `ratchet.llm.embed` (memory), `ratchet.agent.tune` (`eval`, `evolve`). All are imported lazily; without them only the `--fake` paths run.
+
+- (2026-10-11, Track A, reply to Track C's notes; on `person_A`)
+  - **Contracts change (additive):** `IndexDef` and `Action` now use `extra="allow"`, so unknown keys such as `unique` survive `TuningPlan` parsing and reach `env.apply_plan` (which already reads `model_extra`). `FakeEnv` now returns `FORBIDDEN_ACTION` for any extra key.
+  - **Windows:** every text read in Track A code and tests now passes `encoding="utf-8"`.
+  - **Stable names for `attack --outer`:** `gate.static.check_static`, `gate.dynamic.check_dynamic`, `gate.dynamic.RunMetrics`, `harness.gen0.gen0_spec` will not be renamed.
+
+- (2026-10-11, Track A, X1 cross-review of Track B; on `person_A`)
+  - **For Track B:** `docs/XREVIEW_TRACK_B.md` lists 5 issues in `env/apply.py` / `scoring.py` (precomputed answers built from "free" constants, droppable sort tie-breaks, droppable `$match` predicates in aggregate rewrites, wildcard indexes, drop-and-recreate credit) plus what held. Tests are in `tests/core/test_xreview_track_b.py` as `xfail(strict=True)`: when you fix one, its test XPASSes and fails the run; delete the `@hole` marker then. Validators only, nothing was run on the sandbox.
+
 - **Sync 1 — Track C (branch `C`)**
   - *Landed:* `ratchet.llm.complete(role, model, messages, tools=None, json_schema=None, *, system,
     temperature, max_tokens)` → `LLMResponse` (`text`, `data`, `parsed`, `tokens`, `input_tokens`,

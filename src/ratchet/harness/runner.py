@@ -32,7 +32,8 @@ class Backend(Protocol):
 def load_workload_files(directory: Path | None = None) -> list[Workload]:
     directory = directory or repo_root() / "workloads"
     return [
-        Workload.model_validate(json.loads(p.read_text())) for p in sorted(directory.glob("*.json"))
+        Workload.model_validate(json.loads(p.read_text(encoding="utf-8")))
+        for p in sorted(directory.glob("*.json"))
     ]
 
 

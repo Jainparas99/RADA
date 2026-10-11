@@ -147,3 +147,24 @@ def test_invalid_literals_rejected():
         c.PatchOp(op="move", path="/x")
     with pytest.raises(ValidationError):
         c.Workload.model_validate({**SPEC_WORKLOAD, "split": "test"})
+
+
+def test_unknown_plan_keys_survive_parsing_so_the_env_can_forbid_them():
+    plan = c.TuningPlan.model_validate(
+        {
+            "actions": [
+                {
+                    "type": "create_index",
+                    "collection": "movies",
+                    "index": {"keys": [["title", 1]], "unique": True},
+                    "hint": "x",
+                }
+            ]
+        }
+    )
+    assert plan.actions[0].index.model_extra == {"unique": True}
+    assert plan.actions[0].model_extra == {"hint": "x"}
+    assert roundtrip(plan).model_dump()["actions"][0]["index"]["unique"] is True
+    env, w = FakeEnv(), sample_workload()
+    report = env.apply_plan(env.prepare_scratch(w), w, plan)
+    assert report.violations == ["FORBIDDEN_ACTION"] and report.applied == []

@@ -2,12 +2,16 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 Split = Literal["train", "holdout", "canary"]
 
 
 class IndexDef(BaseModel):
+    # Unknown keys (e.g. `unique`, `expireAfterSeconds`) are kept, not dropped, so the
+    # environment can see them and report FORBIDDEN_ACTION instead of silently ignoring them.
+    model_config = ConfigDict(extra="allow")
+
     keys: list[tuple[str, int | str]]  # [("genres",1),("imdb.rating",-1)]
     name: str | None = None
     partialFilterExpression: dict | None = None  # noqa: N815 (MongoDB option name)
@@ -59,6 +63,8 @@ class Finding(BaseModel):
 
 
 class Action(BaseModel):
+    model_config = ConfigDict(extra="allow")  # see IndexDef: extras must reach the scorer
+
     type: Literal["create_index", "drop_index", "rewrite_query"]
     collection: str | None = None
     index: IndexDef | None = None  # create_index

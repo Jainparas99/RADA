@@ -84,6 +84,7 @@ def static_report(
     patch: list[PatchOp],
     *,
     leak_terms: LeakTerms | None = None,
+    lessons: list[str] | None = None,
     bounds: dict | None = None,
     gate_cfg: dict | None = None,
     current_scorer_hash: str | None = None,
@@ -162,6 +163,13 @@ def static_report(
         text += "\n" + "\n".join(op.path for op in patch)
         for term in leak_terms.find(text):
             rep.add("HOLDOUT_LEAKAGE", f"mentions held-out name {term!r}")
+
+    # Memory is part of the harness the candidate would run with: a lesson that names a
+    # held-out collection or field blocks promotion until it is invalidated.
+    if leak_terms is not None:
+        for i, lesson in enumerate(lessons or []):
+            for term in leak_terms.find(lesson):
+                rep.add("HOLDOUT_LEAKAGE", f"memory lesson #{i} mentions held-out name {term!r}")
 
     if rep.ok:
         rep.candidate = candidate
