@@ -29,3 +29,24 @@ Append one entry per sync: time, track, what landed on main, what's next, anythi
     `ANTHROPIC_API_KEY`, Atlas URIs). OpenAI/Google adapters are written against current SDK docs
     but untested without keys. Current Claude models reject `temperature`; determinism comes from
     `llm_cache`, not temperature 0.
+- **Sync 2 — Track C (branch `C`)**
+  - *Landed:* critic (`agent/critic.py`): a model different from the planner (other provider
+    preferred: harness `model_routing.critic` → `RATCHET_CRITIC_MODEL` → `anthropic:claude-sonnet-5-5`)
+    reviews every plan against base checks + `critic_rubric`; uses its revised plan or has the
+    planner revise, up to `critic_policy.max_revisions`; fails open; verdicts in the trace;
+    `tune()` runs it by default whenever the harness enables it. Planner tools (`agent/tools.py`):
+    `explain`, `list_indexes`, `collection_stats`, `sample_docs`, `findings`, `recall_lessons`
+    (gated by `memory_policy.inject.mode`), `self_diagnose` (→ `TuneResult.self_diagnostics`),
+    via a JSON tool protocol that works for every provider and FakeLLM. Forbidden-action scan on
+    the planner's raw JSON (unknown types, types outside `allowed_actions`, unique/sparse/TTL/hidden,
+    `_id_` drop, `$out`/`$merge`/`hint`) → `FORBIDDEN_ACTION`, score 0. `ratchet attack --inner`
+    (`--fake` works offline): all four SPEC §14 inner cheats rejected via the agent path; three of
+    four also caught by the scorer alone.
+  - *Asks:* **A** (contracts, additive): `IndexDef` drops unknown keys, so `unique: true` can't reach
+    Track B's apply; the agent scan catches it today. Consider `model_config = ConfigDict(extra="allow")`
+    on `IndexDef` so B's apply can also reject it (`FORBIDDEN_ACTION`) on the scorer path.
+    **A**: `ratchet attack --outer` will call your static gate (`check_static(parent, patch)`) and
+    dynamic gate (`check_dynamic(parent_scores, cand_scores)`); please keep those names stable.
+  - *Next (C):* attack outer part, transfer, chart, watch, replay, README + DEMO.md.
+  - *Broken / not verified:* still no live run (no `.env` in this checkout). OpenAI/Google adapters
+    untested without keys.
