@@ -39,12 +39,16 @@ __all__ = [
     "FakeLLM",
     "FakeLLMResponse",
     "FakeScratch",
+    "SCRIPTED_PROPOSALS",
     "fake_tune",
     "fake_workloads",
     "heuristic_plan",
     "index_name",
     "sample_workload",
+    "scripted_proposer_llm",
 ]
+
+FAKE_PROMPT_OVERHEAD_TOKENS = 2000  # stands in for the real agent's system prompt and tool calls
 
 INNER_VIOLATIONS = [
     "RESULT_MISMATCH",
@@ -325,7 +329,7 @@ class FakeEnv:
             sort_in_mem = bool(sfields)
         else:
             covered_filter = best_hits >= len(set(ffields))
-            keys_ex = docs_ex = n_ret if covered_filter else n_ret * 20
+            keys_ex = docs_ex = n_ret if covered_filter else n // 4
             stages, used = ["IXSCAN", "FETCH"], [index_name(best)]
             ix_keys = {k for k, _ in best.keys}
             sort_in_mem = bool(sfields) and not set(sfields) <= ix_keys
@@ -413,6 +417,7 @@ def sample_workload(
 
 def fake_workloads() -> list[Workload]:
     """3 train, 2 holdout (different collections), 1 canary with a tight index budget."""
+    # canary: one spare index slot, so any plan that indexes field-by-field is a violation
     return [
         sample_workload("fake_train_01", "train", "movies", "genres", "year", "rating"),
         sample_workload("fake_train_02", "train", "listings", "city", "price", "score", "reviews",
@@ -424,7 +429,7 @@ def fake_workloads() -> list[Workload]:
         sample_workload("fake_holdout_02", "holdout", "accounts", "tier", "balance", "opened_on",
                         "transactions", "account_id"),
         sample_workload("fake_canary_01", "canary", "trips", "station", "duration", "started_at",
-                        "stops", "trip_id", budget=1),
+                        "stops", "trip_id", budget=2),
     ]  # fmt: skip
 
 
@@ -549,33 +554,41 @@ def _rules_mention(harness: HarnessSpec, *words: str) -> bool:
 
 def heuristic_plan(workload: Workload, harness: HarnessSpec, scratch: FakeScratch) -> TuningPlan:
     """A scripted "planner" whose quality depends on the harness, so the outer loop has
-    something to improve: ESR indexes need findings in context or a rule about sort order,
-    $match push-down needs a rule about $match, and respecting budgets needs a rule about it."""
-    knows_esr = harness.context_policy.include_detector_findings or _rules_mention(
-        harness, "sort", "ESR"
+    something to improve and something to catch:
+
+    - ESR indexes need detector findings in context or a rule about sort order;
+    - $match push-down needs a rule mentioning $match;
+    - a rule naming a collection makes the plan perfect for that collection only (overfit);
+    - a rule saying "every field" over-indexes and blows the index budget (canary trap).
+    """
+    named = any(_rules_mention(harness, c) for c in workload.collections)
+    knows_esr = named or (
+        harness.context_policy.include_detector_findings or _rules_mention(harness, "sort", "ESR")
     )
-    knows_match = _rules_mention(harness, "$match")
-    knows_budget = _rules_mention(harness, "budget")
+    knows_match = named or _rules_mention(harness, "$match")
+    greedy = _rules_mention(harness, "every field")
     actions: list[Action] = []
     for q in workload.queries:
         fields = _filter_fields(q)
         if q.kind == "find" and fields:
-            used = len(scratch.indexes.get(q.collection, []))
-            budget = workload.index_budget.get(q.collection)
-            if knows_budget and budget is not None and used >= budget:
-                continue
+            dirs = dict(q.sort or [])
             eq = [f for f in fields if not isinstance(q.filter[f], dict)]
             rng = [f for f in fields if isinstance(q.filter[f], dict)]
-            keys = [*eq, *_sort_fields(q), *rng] if knows_esr else fields[:1]
-            dirs = dict(q.sort or [])
-            actions.append(
-                Action(
-                    type="create_index",
-                    collection=q.collection,
-                    index=IndexDef(keys=[(k, dirs.get(k, 1)) for k in keys]),
-                    rationale="filter fields" + (" in ESR order" if knows_esr else ""),
+            if greedy:
+                key_sets = [[f] for f in [*fields, *_sort_fields(q)]]
+            elif knows_esr:
+                key_sets = [[*eq, *_sort_fields(q), *rng]]
+            else:
+                key_sets = [fields[:1]]
+            for keys in key_sets:
+                actions.append(
+                    Action(
+                        type="create_index",
+                        collection=q.collection,
+                        index=IndexDef(keys=[(k, dirs.get(k, 1)) for k in keys]),
+                        rationale="filter fields" + (" in ESR order" if knows_esr else ""),
+                    )
                 )
-            )
         if q.kind == "aggregate" and knows_match and _late_match(q):
             pipe = q.pipeline or []
             early = [s for s in pipe if "$match" in s] + [s for s in pipe if "$match" not in s]
@@ -626,7 +639,7 @@ def fake_tune(
         after=after,
         score=report,
         findings=findings,
-        tokens=reply.tokens,
+        tokens=reply.tokens + FAKE_PROMPT_OVERHEAD_TOKENS,
         rounds=1,
         trace=[
             {"step": "context", "messages": messages},
@@ -654,3 +667,53 @@ class FakeBackend:
     def tune(self, workload: Workload, harness: HarnessSpec, mode: str) -> TuneResult:
         self.modes.append((workload.id, mode))
         return fake_tune(workload, harness, self.env, mode)
+
+
+# --------------------------------------------------------------------------- fake proposer
+
+
+def _proposal(why: str, *ops: tuple[str, str, Any]) -> dict:
+    return {
+        "diagnosis": f"[scripted fake proposer] {why}",
+        "hypothesis": why,
+        "patch": [{"op": o, "path": p, "value": v} for o, p, v in ops],
+        "expected_effect": "scripted",
+    }
+
+
+# A fixed sequence for `ratchet evolve --fake` and tests: two honest improvements mixed with
+# seeded bad patches, one per gate behaviour. These are scripted, not model output.
+SCRIPTED_PROPOSALS: list[dict] = [
+    _proposal(
+        "name the training collections (overfits train)",
+        ("add", "/planner_rules/-", "Take extra care with movies, listings and restaurants."),
+    ),
+    _proposal(
+        "show detector findings to the planner",
+        ("replace", "/context_policy/include_detector_findings", True),
+    ),
+    _proposal(
+        "raise the token budget (protected field)",
+        ("replace", "/protected/token_budget_per_workload", 1_000_000),
+    ),
+    _proposal(
+        "hard-code a held-out collection (leak)",
+        ("add", "/planner_rules/-", "For collection sales always index sold_at."),
+    ),
+    _proposal(
+        "index everything (blows the index budget)",
+        ("add", "/planner_rules/-", "Create an index on every field a query mentions."),
+    ),
+    _proposal(
+        "teach $match push-down",
+        ("add", "/planner_rules/-", "Move $match before $lookup when its fields allow it."),
+    ),
+    _proposal(
+        "more retries (no measurable effect here)", ("replace", "/retry_policy/max_rounds", 2)
+    ),
+]
+
+
+def scripted_proposer_llm() -> FakeLLM:
+    """A FakeLLM that replays SCRIPTED_PROPOSALS for the proposer role, then repeats the last."""
+    return FakeLLM({"proposer": list(SCRIPTED_PROPOSALS)}, default=SCRIPTED_PROPOSALS[-1])

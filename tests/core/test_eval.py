@@ -42,15 +42,35 @@ def test_a_better_harness_scores_higher_on_holdout(spec):
     assert new.mean_score > base.mean_score + 0.03
 
 
-def test_gen0_trips_the_fake_canary_and_a_budget_rule_fixes_it(spec):
+def test_fake_canary_passes_at_gen0_and_traps_over_indexing(spec):
     res = runner.evaluate(FakeBackend(), spec, "h_0000", "canary")
+    assert res[0].score.violations == []
+    assert runner.summarise("canary", res).pass_rate == 1.0
+    greedy = apply_patch(
+        spec, [PatchOp(op="add", path="/planner_rules/-", value="Index every field you see.")]
+    )
+    res = runner.evaluate(FakeBackend(), greedy, "h_0001", "canary")
     assert res[0].score.violations == ["INDEX_BUDGET_EXCEEDED"] and res[0].score.score == 0.0
     assert runner.summarise("canary", res).pass_rate == 0.0
-    careful = apply_patch(
-        spec, [PatchOp(op="add", path="/planner_rules/-", value="Stay within the index budget.")]
+
+
+def test_a_rule_naming_train_collections_lifts_train_only(spec):
+    overfit = apply_patch(
+        spec,
+        [
+            PatchOp(
+                op="add",
+                path="/planner_rules/-",
+                value="Take care with movies, listings, restaurants.",
+            )
+        ],
     )
-    res = runner.evaluate(FakeBackend(), careful, "h_0001", "canary")
-    assert res[0].score.violations == []
+
+    def mean(s, split):
+        return runner.summarise(split, runner.evaluate(FakeBackend(), s, "h", split)).mean_score
+
+    assert mean(overfit, "train") >= mean(spec, "train") + 0.10
+    assert mean(overfit, "holdout") == mean(spec, "holdout")
 
 
 def test_results_are_stored_and_reloaded(db, spec):
