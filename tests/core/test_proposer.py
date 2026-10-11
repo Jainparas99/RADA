@@ -162,3 +162,23 @@ def test_prompt_is_the_context_and_nothing_else(ctx):
     messages = build_messages(ctx)
     assert [m["role"] for m in messages] == ["system", "user"]
     assert json.loads(messages[1]["content"])["head_version"] == "h_0000"
+
+
+def test_llm_layer_errors_become_proposer_errors(ctx):
+    class LLMError(RuntimeError):  # same name as ratchet.llm.types.LLMError
+        pass
+
+    class LLMJSONError(LLMError):
+        pass
+
+    def broken(*a, **kw):
+        raise LLMJSONError("model never produced valid JSON")
+
+    with pytest.raises(ProposerError, match="LLMJSONError"):
+        propose(ctx, complete=broken, model="fake:m")
+
+    def bug(*a, **kw):
+        raise KeyError("a real bug must not be swallowed")
+
+    with pytest.raises(KeyError):
+        propose(ctx, complete=bug, model="fake:m")

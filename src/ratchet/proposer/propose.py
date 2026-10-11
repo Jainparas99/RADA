@@ -89,6 +89,11 @@ def parse_output(resp: Any) -> ProposerOutput:
         raise ValueError(f"reply does not match the schema: {e.errors(include_url=False)}") from e
 
 
+def _is_llm_error(e: Exception) -> bool:
+    """True for Track C's `ratchet.llm.LLMError` family (matched by name: no hard import)."""
+    return any(c.__name__ == "LLMError" for c in type(e).__mro__)
+
+
 def propose(
     context: ProposerContext,
     complete: CompleteFn | None = None,
@@ -102,7 +107,13 @@ def propose(
     messages = build_messages(context)
     last_error = ""
     for _attempt in range(2):
-        resp = complete(ROLE, model, messages, json_schema=schema)
+        try:
+            resp = complete(ROLE, model, messages, json_schema=schema)
+        except Exception as e:
+            # ratchet.llm validates and repairs JSON itself, then raises; so do provider outages.
+            if _is_llm_error(e):
+                raise ProposerError(f"{type(e).__name__}: {e}") from e
+            raise
         if usage is not None:
             usage["tokens"] = usage.get("tokens", 0) + response_tokens(resp)
             usage["calls"] = usage.get("calls", 0) + 1
