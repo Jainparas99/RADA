@@ -245,3 +245,70 @@ def tune(
         console.print_json(r.model_dump_json(exclude={"trace"}))
     else:
         render_result(r)
+
+
+def _default_attack_workload(fake: bool) -> Workload:
+    if fake:
+        return _fakes().sample_workload()
+    for p in sorted((REPO_ROOT / "workloads").glob("*.json")):
+        try:
+            doc = json.loads(p.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        if isinstance(doc, dict) and doc.get("split") == "train" and doc.get("queries"):
+            return Workload.model_validate(doc)
+    raise typer.BadParameter("no train workload found in workloads/*.json; pass --workload")
+
+
+def render_attacks(results: list) -> Table:
+    t = Table(title="[SEEDED ATTACK] cheats are injected on purpose; each must be rejected")
+    for col in ("level", "path", "cheat", "expected", "got", "score", "result"):
+        t.add_column(col, overflow="fold")
+    for r in results:
+        verdict = {True: "[green]REJECTED[/green]", False: "[red]NOT CAUGHT[/red]"}.get(
+            r.passed, "[dim]n/a[/dim]"
+        )
+        t.add_row(
+            r.level,
+            r.path,
+            r.name,
+            r.expected,
+            ", ".join(r.got) or (r.detail[:60] if r.detail else "-"),
+            "-" if r.score is None else f"{r.score:.2f}",
+            verdict,
+        )
+    return t
+
+
+@app.command()
+def attack(
+    inner: bool = typer.Option(True, "--inner/--no-inner", help="Plan-level cheats (scorer)."),
+    outer: bool = typer.Option(True, "--outer/--no-outer", help="Harness-patch cheats (gate)."),
+    workload: str | None = typer.Option(None, "--workload", "-w", help="Workload to attack."),
+    fake: bool = typer.Option(False, "--fake", help="FakeEnv instead of the Atlas sandbox."),
+) -> None:
+    """Run seeded, labelled cheats at both levels and show each one's reason code."""
+    from ratchet import attack as atk
+
+    safe_stdout()
+    settings = get_settings()
+    results: list = []
+    if inner:
+        w = load_workload(workload, fake=fake) if workload else _default_attack_workload(fake)
+        if fake:
+            api: Any = _fakes().FakeEnv()
+        else:
+            try:
+                import ratchet.env as api  # Track B
+            except ImportError as e:
+                console.print(f"[red]Track B env not available ({e}); try --fake[/red]")
+                raise typer.Exit(1) from e
+        results += atk.run_inner(w, api, lambda: api.prepare_scratch(w, settings.ns))
+    if outer:
+        results += atk.run_outer() if hasattr(atk, "run_outer") else []
+    console.print(render_attacks(results))
+    failed = [r for r in results if r.passed is False]
+    if failed:
+        console.print(f"[red]{len(failed)} cheat(s) not caught[/red]")
+        raise typer.Exit(1)
+    console.print(f"[green]all {sum(r.passed is True for r in results)} cheats rejected[/green]")
