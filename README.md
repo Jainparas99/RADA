@@ -178,9 +178,7 @@ behaviour) and shows each one rejected with its code:
 | outer | patch that lifts train but not holdout | `OVERFIT_DIVERGENCE` |
 
 Inner cheats run twice: through the whole agent (the cheat is the planner's reply) and straight
-into apply + score, to show the scorer catches them without the agent's help. The one exception is
-`unique: true`, which the shared contract can't even express; the agent's raw-JSON scan catches
-it.
+into apply + score, to show the scorer catches them without the agent's help.
 
 ## Model wrangling
 

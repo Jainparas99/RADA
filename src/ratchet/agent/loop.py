@@ -144,12 +144,20 @@ def lesson_text(lesson: Any) -> str:
     return str(lesson)
 
 
+def memory_policy_of(harness_spec: Any, h: AgentHarness) -> Any:
+    """The harness's own memory_policy (model or dict) for Track A's recall(), else the view."""
+    mp = getattr(harness_spec, "memory_policy", None)
+    if mp is None and isinstance(harness_spec, dict):
+        mp = harness_spec.get("memory_policy")
+    return mp if mp is not None else h.memory_policy
+
+
 def recall_lessons(
     memory: Any, api: Any, workload: Workload, harness_spec: Any, h: AgentHarness
 ) -> list[str]:
     if memory is None:
         return []
-    policy = getattr(harness_spec, "memory_policy", None) or h.memory_policy
+    policy = memory_policy_of(harness_spec, h)
     budget = max(0, h.memory_policy.inject.max_tokens) * 4  # ~4 chars per token
     out: list[str] = []
     for q in workload.queries:
@@ -258,7 +266,7 @@ def tune(
             findings,
             h,
             memory,
-            getattr(harness, "memory_policy", None),
+            memory_policy_of(harness, h),
         )
         if use_tools
         else None

@@ -259,12 +259,13 @@ def test_local_embed_is_deterministic_and_similarity_aware(monkeypatch):
 def test_voyage_embed_is_cached_per_text(monkeypatch):
     calls: list[list[str]] = []
 
-    def fake(texts, model, input_type):
+    def fake(texts, model, input_type, dims):
         calls.append(list(texts))
-        return [[float(len(t)), 1.0] for t in texts]
+        return [[float(len(t))] + [1.0] * (dims - 1) for t in texts]
 
     monkeypatch.setattr(embed_mod, "_voyage_key", lambda: "k")
     monkeypatch.setattr(embed_mod, "_voyage_embed", fake)
+    monkeypatch.setattr(embed_mod, "embed_dims", lambda: 2)
     cache = MemoryCache()
     assert embed_mod.embedding_mode() == "voyage"
     assert embed_mod.embed(["ab", "abc"], cache=cache) == [[2.0, 1.0], [3.0, 1.0]]
@@ -275,3 +276,28 @@ def test_voyage_embed_is_cached_per_text(monkeypatch):
 def test_atlas_mode_flag(monkeypatch):
     monkeypatch.setenv("RATCHET_EMBED_MODE", "atlas")
     assert embed_mod.embedding_mode() == "atlas"
+
+
+def test_embedding_width_follows_embed_dims(monkeypatch):
+    monkeypatch.delenv("RATCHET_EMBED_MODE", raising=False)
+    monkeypatch.setattr(embed_mod, "_voyage_key", lambda: None)
+    monkeypatch.setattr(config, "get_settings", lambda: config.Settings())
+    assert config.Settings().embed_dims == 1024
+    assert [len(v) for v in embed_mod.embed(["a b", "c"])] == [1024, 1024]  # local fallback
+    monkeypatch.setattr(config, "get_settings", lambda: config.Settings(embed_dims=512))
+    assert len(embed_mod.embed(["a b"])[0]) == 512
+
+
+def test_voyage_is_asked_for_index_width_and_checked(monkeypatch):
+    seen = {}
+
+    def fake(texts, model, input_type, dims):
+        seen["dims"] = dims
+        return [[0.0] * 7 for _ in texts]  # wrong width
+
+    monkeypatch.setattr(embed_mod, "_voyage_key", lambda: "k")
+    monkeypatch.setattr(embed_mod, "_voyage_embed", fake)
+    monkeypatch.setattr(config, "get_settings", lambda: config.Settings(voyage_api_key="k"))
+    with pytest.raises(ValueError, match="1024-dim"):
+        embed_mod.embed(["x"], cache=MemoryCache())
+    assert seen["dims"] == 1024

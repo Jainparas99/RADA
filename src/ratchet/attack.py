@@ -6,7 +6,7 @@ that the defences fire. Inner cheats are tuning plans, run two ways:
 - `agent`  — the cheat is the planner's reply (scripted LLM) and goes through the whole inner loop:
              raw-JSON forbidden scan → apply on scratch → re-measure → Track B scorer.
 - `scorer` — the cheat plan goes straight to `apply_plan` + `score`, bypassing the agent, to show
-             the deterministic scorer catches it on its own (where the contract can express it).
+             the deterministic scorer catches it on its own.
 
 A cheat passes when its expected reason code fires and the workload score is 0.
 """
@@ -266,13 +266,6 @@ def run_via_scorer(
         plan = TuningPlan.model_validate(cheat.plan)
     except ValidationError as e:
         return AttackResult(**base, got=[], passed=True, detail=f"rejected by contract: {e}"[:200])
-    if _lossy(cheat.plan, plan):
-        return AttackResult(
-            **base,
-            got=[],
-            passed=None,
-            detail="contract strips the option; agent scan catches it",
-        )
     env = env_factory()
     before = api.measure(env, w)
     rep = api.apply_plan(env, w, plan)
@@ -284,16 +277,6 @@ def run_via_scorer(
         score=sc.score,
         passed=cheat.expected in sc.violations and sc.score == 0.0,
     )
-
-
-def _lossy(raw: dict, plan: TuningPlan) -> bool:
-    """True if validating the raw plan dropped keys (e.g. `unique` on an index)."""
-    for a_raw, a in zip(raw.get("actions", []), plan.actions, strict=False):
-        idx = a_raw.get("index")
-        if isinstance(idx, dict) and a.index is not None:
-            if set(idx) - set(a.index.model_dump(exclude_none=True)) - {"name"}:
-                return True
-    return False
 
 
 def run_inner(w: Workload, api: Any, env_factory: Callable[[], Any]) -> list[AttackResult]:
